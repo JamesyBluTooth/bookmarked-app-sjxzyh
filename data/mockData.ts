@@ -1,4 +1,6 @@
 
+import { BookData } from '@/types/book';
+
 export interface Book {
   id: string;
   title: string;
@@ -10,6 +12,8 @@ export interface Book {
   totalPages?: number;
   currentPage?: number;
 }
+
+export type { BookData };
 
 export interface Friend {
   id: string;

@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { Book } from '@/data/mockData';
 import ProgressBar from './ProgressBar';
 import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
+import { BookData } from '@/types/book';
 
 interface BookCardProps {
-  book: Book;
+  book: BookData;
   onPress?: () => void;
 }
 
@@ -23,12 +23,24 @@ export default function BookCard({ book, onPress }: BookCardProps) {
       style={[
         styles.container,
         { backgroundColor: theme.card },
-        isCompleted && { borderColor: theme.highlight, borderWidth: 2 },
+        isCompleted && { 
+          borderColor: theme.success, 
+          borderWidth: 2,
+        },
       ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: book.coverUrl }} style={styles.cover} />
+      <View style={styles.coverContainer}>
+        <Image source={{ uri: book.coverUrl }} style={styles.cover} />
+        {isCompleted && (
+          <View style={[styles.completedOverlay, { backgroundColor: 'rgba(76, 175, 80, 0.15)' }]}>
+            <View style={[styles.completedBadge, { backgroundColor: theme.success }]}>
+              <IconSymbol name="checkmark" size={16} color="#FFFFFF" />
+            </View>
+          </View>
+        )}
+      </View>
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.textContainer}>
@@ -39,18 +51,13 @@ export default function BookCard({ book, onPress }: BookCardProps) {
               {book.author}
             </Text>
           </View>
-          {isCompleted && (
-            <View style={[styles.completedBadge, { backgroundColor: theme.highlight }]}>
-              <IconSymbol name="checkmark" size={16} color="#000" />
-            </View>
-          )}
         </View>
 
         {book.status === 'reading' && (
           <View style={styles.progressSection}>
             <ProgressBar progress={book.progress} />
             <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-              {book.currentPage} / {book.totalPages} pages ({book.progress}%)
+              {book.currentPage} / {book.pageCount} pages ({book.progress}%)
             </Text>
           </View>
         )}
@@ -81,11 +88,27 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
+  coverContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
   cover: {
     width: 80,
     height: 120,
     borderRadius: 8,
-    marginRight: 12,
+  },
+  completedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  completedBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -107,13 +130,6 @@ const styles = StyleSheet.create({
   },
   author: {
     fontSize: 14,
-  },
-  completedBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   progressSection: {
     marginTop: 8,

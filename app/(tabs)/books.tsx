@@ -1,13 +1,17 @@
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
 import BookCard from '@/components/BookCard';
+import AddBookModal from '@/components/AddBookModal';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
-import { mockBooks, mockUser } from '@/data/mockData';
+import { mockUser } from '@/data/mockData';
 import { useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
+import { BookData } from '@/types/book';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 type FilterType = 'all' | 'reading' | 'to-read' | 'completed';
 
@@ -16,6 +20,9 @@ export default function BooksScreen() {
   const theme = isDark ? colors.dark : colors.light;
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [books, setBooks] = useState<BookData[]>([]);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -24,10 +31,28 @@ export default function BooksScreen() {
     { key: 'completed', label: 'Completed' },
   ];
 
-  const filteredBooks = mockBooks.filter(book => {
+  const filteredBooks = books.filter(book => {
     if (activeFilter === 'all') return true;
     return book.status === activeFilter;
   });
+
+  const handleAddBook = (book: BookData) => {
+    setBooks(prev => [...prev, book]);
+    setIsAddModalVisible(false);
+    setShowConfirmation(true);
+    setTimeout(() => setShowConfirmation(false), 2000);
+  };
+
+  const handleBookPress = (book: BookData) => {
+    router.push({
+      pathname: '/book-detail',
+      params: { bookId: book.id }
+    });
+  };
+
+  const handleUpdateBook = (updatedBook: BookData) => {
+    setBooks(prev => prev.map(b => b.id === updatedBook.id ? updatedBook : b));
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
@@ -39,36 +64,38 @@ export default function BooksScreen() {
         onAvatarPress={() => router.push('/(tabs)/profile')}
       />
 
-      <View style={styles.filtersContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {filters.map(filter => (
-            <TouchableOpacity
-              key={filter.key}
-              style={[
-                styles.filterButton,
-                activeFilter === filter.key && { backgroundColor: theme.primary },
-                activeFilter !== filter.key && { backgroundColor: theme.card },
-              ]}
-              onPress={() => setActiveFilter(filter.key)}
-              activeOpacity={0.7}
-            >
-              <Text
+      {books.length > 0 && (
+        <View style={styles.filtersContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersContent}
+          >
+            {filters.map(filter => (
+              <TouchableOpacity
+                key={filter.key}
                 style={[
-                  styles.filterText,
-                  activeFilter === filter.key && styles.filterTextActive,
-                  activeFilter !== filter.key && { color: theme.text },
+                  styles.filterButton,
+                  activeFilter === filter.key && { backgroundColor: theme.primary },
+                  activeFilter !== filter.key && { backgroundColor: theme.card },
                 ]}
+                onPress={() => setActiveFilter(filter.key)}
+                activeOpacity={0.7}
               >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+                <Text
+                  style={[
+                    styles.filterText,
+                    activeFilter === filter.key && styles.filterTextActive,
+                    activeFilter !== filter.key && { color: theme.text },
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -78,28 +105,67 @@ export default function BooksScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statsRow}>
-          <Text style={[styles.statsText, { color: theme.textSecondary }]}>
-            {filteredBooks.length} {filteredBooks.length === 1 ? 'book' : 'books'}
-          </Text>
-        </View>
-
-        {filteredBooks.map(book => (
-          <BookCard
-            key={book.id}
-            book={book}
-            onPress={() => console.log('Book pressed:', book.title)}
-          />
-        ))}
-
-        {filteredBooks.length === 0 && (
+        {books.length === 0 ? (
           <View style={styles.emptyState}>
+            <IconSymbol name="book" size={80} color={theme.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              Your library is empty
+            </Text>
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              No books found in this category
+              Add a book to begin tracking your reading
             </Text>
           </View>
+        ) : (
+          <>
+            <View style={styles.statsRow}>
+              <Text style={[styles.statsText, { color: theme.textSecondary }]}>
+                {filteredBooks.length} {filteredBooks.length === 1 ? 'book' : 'books'}
+              </Text>
+            </View>
+
+            {filteredBooks.map(book => (
+              <BookCard
+                key={book.id}
+                book={book}
+                onPress={() => handleBookPress(book)}
+              />
+            ))}
+
+            {filteredBooks.length === 0 && (
+              <View style={styles.emptyFilterState}>
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No books found in this category
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        onPress={() => setIsAddModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <IconSymbol name="plus" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <AddBookModal
+        visible={isAddModalVisible}
+        onClose={() => setIsAddModalVisible(false)}
+        onAddBook={handleAddBook}
+      />
+
+      {showConfirmation && (
+        <Animated.View
+          entering={FadeIn}
+          exiting={FadeOut}
+          style={[styles.confirmationToast, { backgroundColor: theme.success }]}
+        >
+          <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
+          <Text style={styles.confirmationText}>Book added successfully!</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -151,9 +217,53 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 100,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginTop: 24,
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyFilterState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 90,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+  },
+  confirmationToast: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 180 : 170,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+  },
+  confirmationText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
