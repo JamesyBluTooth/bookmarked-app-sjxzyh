@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Platform } from 'react-native';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
@@ -5,13 +6,30 @@ import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
-  // Define the tabs configuration
   const tabs: TabBarItem[] = [
     {
       name: '(home)',
       route: '/(tabs)/(home)/',
       icon: 'house.fill',
-      label: 'Home',
+      label: 'Dashboard',
+    },
+    {
+      name: 'books',
+      route: '/(tabs)/books',
+      icon: 'book.fill',
+      label: 'Books',
+    },
+    {
+      name: 'friends',
+      route: '/(tabs)/friends',
+      icon: 'person.2.fill',
+      label: 'Friends',
+    },
+    {
+      name: 'groups',
+      route: '/(tabs)/groups',
+      icon: 'person.3.fill',
+      label: 'Groups',
     },
     {
       name: 'profile',
@@ -21,13 +39,24 @@ export default function TabLayout() {
     },
   ];
 
-  // Use NativeTabs for iOS, custom FloatingTabBar for Android and Web
   if (Platform.OS === 'ios') {
     return (
       <NativeTabs>
         <NativeTabs.Trigger name="(home)">
           <Icon sf="house.fill" drawable="ic_home" />
-          <Label>Home</Label>
+          <Label>Dashboard</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="books">
+          <Icon sf="book.fill" drawable="ic_book" />
+          <Label>Books</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="friends">
+          <Icon sf="person.2.fill" drawable="ic_friends" />
+          <Label>Friends</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="groups">
+          <Icon sf="person.3.fill" drawable="ic_groups" />
+          <Label>Groups</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="profile">
           <Icon sf="person.fill" drawable="ic_profile" />
@@ -37,19 +66,21 @@ export default function TabLayout() {
     );
   }
 
-  // For Android and Web, use Stack navigation with custom floating tab bar
   return (
     <>
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none', // Remove fade animation to prevent black screen flash
+          animation: 'none',
         }}
       >
         <Stack.Screen name="(home)" />
+        <Stack.Screen name="books" />
+        <Stack.Screen name="friends" />
+        <Stack.Screen name="groups" />
         <Stack.Screen name="profile" />
       </Stack>
-      <FloatingTabBar tabs={tabs} />
+      <FloatingTabBar tabs={tabs} containerWidth={360} />
     </>
   );
 }
