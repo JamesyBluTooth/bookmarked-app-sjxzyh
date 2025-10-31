@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
@@ -18,7 +18,15 @@ export default function StatCard({ icon, value, label, color }: StatCardProps) {
   const iconColor = color || theme.primary;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.card }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? theme.card : '#FFFFFF',
+          borderColor: isDark ? theme.border : '#E0E0E0',
+        },
+      ]}
+    >
       <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
         <IconSymbol name={icon} size={24} color={iconColor} />
       </View>
@@ -31,11 +39,15 @@ export default function StatCard({ icon, value, label, color }: StatCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     minWidth: 100,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    marginVertical: 8,
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
   },
   iconContainer: {
@@ -44,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   value: {
     fontSize: 24,

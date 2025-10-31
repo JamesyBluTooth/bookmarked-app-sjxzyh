@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Group } from '@/data/mockData';
 import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
@@ -14,9 +14,42 @@ interface GroupCardProps {
 export default function GroupCard({ group, onJoin }: GroupCardProps) {
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(animatedValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(animatedValue, {
+      toValue: 0,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const translateY = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -2],
+  });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.card }]}>
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? theme.card : '#FFFFFF',
+          borderColor: isDark ? theme.border : '#E0E0E0',
+          transform: [{ translateY }],
+        },
+      ]}
+    >
       <Image source={{ uri: group.imageUrl }} style={styles.image} />
       <View style={styles.content}>
         <Text style={[styles.name, { color: theme.text }]}>{group.name}</Text>
@@ -45,21 +78,25 @@ export default function GroupCard({ group, onJoin }: GroupCardProps) {
         <TouchableOpacity
           style={[styles.joinButton, { backgroundColor: theme.primary }]}
           onPress={onJoin}
-          activeOpacity={0.7}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={0.8}
         >
           <Text style={styles.joinButtonText}>Join Group</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
+    borderRadius: 18,
+    borderWidth: 2,
     overflow: 'hidden',
-    marginBottom: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    marginVertical: 8,
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
   },
   image: {
@@ -67,12 +104,12 @@ const styles = StyleSheet.create({
     height: 150,
   },
   content: {
-    padding: 16,
+    padding: 20,
   },
   name: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: 12,
   },
   description: {
     fontSize: 14,
