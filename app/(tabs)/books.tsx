@@ -44,9 +44,13 @@ export default function BooksScreen() {
   };
 
   const handleBookPress = (book: BookData) => {
+    console.log('Opening book detail with ISBN:', book.isbn);
     router.push({
       pathname: '/book-detail',
-      params: { bookId: book.id }
+      params: { 
+        isbn: book.isbn,
+        bookData: JSON.stringify(book)
+      }
     });
   };
 
