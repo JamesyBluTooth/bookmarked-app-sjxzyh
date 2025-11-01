@@ -1,17 +1,17 @@
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
 import BookCard from '@/components/BookCard';
 import AddBookModal from '@/components/AddBookModal';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
-import { mockUser } from '@/data/mockData';
 import { useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { BookData } from '@/types/book';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useAppStore } from '@/stores/appStore';
 
 type FilterType = 'all' | 'reading' | 'to-read' | 'completed';
 
@@ -20,9 +20,13 @@ export default function BooksScreen() {
   const theme = isDark ? colors.dark : colors.light;
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [books, setBooks] = useState<BookData[]>([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  // Use Zustand store
+  const books = useAppStore((state) => state.books);
+  const addBook = useAppStore((state) => state.addBook);
+  const user = useAppStore((state) => state.user);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -37,7 +41,7 @@ export default function BooksScreen() {
   });
 
   const handleAddBook = (book: BookData) => {
-    setBooks(prev => [...prev, book]);
+    addBook(book);
     setIsAddModalVisible(false);
     setShowConfirmation(true);
     setTimeout(() => setShowConfirmation(false), 2000);
@@ -54,16 +58,12 @@ export default function BooksScreen() {
     });
   };
 
-  const handleUpdateBook = (updatedBook: BookData) => {
-    setBooks(prev => prev.map(b => b.id === updatedBook.id ? updatedBook : b));
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <TopBar
         title="My Library"
         showAvatar
-        avatarUrl={mockUser.avatarUrl}
+        avatarUrl={user.avatarUrl}
         onNotificationPress={() => console.log('Notifications pressed')}
         onAvatarPress={() => router.push('/(tabs)/profile')}
       />

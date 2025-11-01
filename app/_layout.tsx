@@ -14,6 +14,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { syncService } from '@/services/syncService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,6 +30,18 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Initialize sync service
+  useEffect(() => {
+    console.log('Initializing app with Zustand + Supabase sync...');
+    syncService.initialize().catch((error) => {
+      console.error('Failed to initialize sync service:', error);
+    });
+
+    return () => {
+      syncService.stopSync();
+    };
+  }, []);
 
   if (!loaded) {
     return null;
