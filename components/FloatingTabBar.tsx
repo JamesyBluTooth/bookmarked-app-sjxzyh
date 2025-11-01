@@ -11,15 +11,11 @@ import {
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
-import { BlurView } from 'expo-blur';
-import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  interpolate,
+  withTiming,
 } from 'react-native-reanimated';
-import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -40,16 +36,14 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = 360,
-  borderRadius = 25,
+  containerWidth = 600,
+  borderRadius = 18,
   bottomMargin
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const theme = useTheme();
   const { isDark } = useThemeMode();
-  const themeColors = isDark ? colors.dark : colors.light;
-  const animatedValue = useSharedValue(0);
+  const pillPosition = useSharedValue(0);
 
   const activeTabIndex = React.useMemo(() => {
     let bestMatch = -1;
@@ -79,89 +73,82 @@ export default function FloatingTabBar({
 
   React.useEffect(() => {
     if (activeTabIndex >= 0) {
-      animatedValue.value = withSpring(activeTabIndex, {
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
+      pillPosition.value = withTiming(activeTabIndex, {
+        duration: 300,
       });
     }
-  }, [activeTabIndex, animatedValue]);
+  }, [activeTabIndex, pillPosition]);
 
-  const handleTabPress = (route: string) => {
+  const handleTabPress = (route: string, index: number) => {
     router.push(route);
   };
 
-  const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 16) / tabs.length;
+  const pillStyle = useAnimatedStyle(() => {
+    const pillWidth = 100 / tabs.length;
     return {
-      transform: [
-        {
-          translateX: interpolate(
-            animatedValue.value,
-            [0, tabs.length - 1],
-            [0, tabWidth * (tabs.length - 1)]
-          ),
-        },
-      ],
+      left: `${pillPosition.value * pillWidth}%`,
+      width: `${pillWidth}%`,
     };
   });
 
-  const dynamicStyles = {
-    blurContainer: {
-      ...styles.blurContainer,
-      ...Platform.select({
-        ios: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.8)'
-            : 'rgba(255, 255, 255, 0.8)',
-        },
-        android: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          elevation: 8,
-        },
-        web: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          boxShadow: theme.dark
-            ? '0 8px 32px rgba(0, 0, 0, 0.4)'
-            : '0 8px 32px rgba(0, 0, 0, 0.1)',
-        },
-      }),
-    },
-    background: {
-      ...styles.background,
-      backgroundColor: theme.dark
-        ? (Platform.OS === 'ios' ? 'transparent' : 'rgba(28, 28, 30, 0.1)')
-        : (Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.1)'),
-    },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: theme.dark
-        ? 'rgba(255, 255, 255, 0.08)'
-        : 'rgba(0, 0, 0, 0.04)',
-      width: `${(100 / tabs.length) - 2}%`,
-    },
-  };
+  const actualWidth = Math.min(containerWidth, screenWidth);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={[
         styles.container,
         {
-          width: Math.min(containerWidth, screenWidth - 32),
-          marginBottom: bottomMargin ?? (Platform.OS === 'ios' ? 10 : 20)
+          width: actualWidth,
+          maxWidth: containerWidth,
         }
       ]}>
-        <BlurView
-          intensity={Platform.OS === 'web' ? 0 : 80}
-          style={[dynamicStyles.blurContainer, { borderRadius }]}
-        >
-          <View style={dynamicStyles.background} />
-          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
+        <View style={[
+          styles.navContainer,
+          {
+            backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+            borderTopColor: isDark ? '#2C2C2C' : '#E5E7EB',
+            borderTopLeftRadius: borderRadius,
+            borderTopRightRadius: borderRadius,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.05,
+                shadowRadius: 10,
+              },
+              android: {
+                elevation: 8,
+              },
+              web: {
+                boxShadow: '0 -4px 10px rgba(0, 0, 0, 0.05)',
+              },
+            }),
+          }
+        ]}>
+          {/* Sliding Pill Indicator */}
+          <Animated.View style={[
+            styles.navPill,
+            pillStyle,
+            {
+              backgroundColor: '#4F46E5',
+              ...Platform.select({
+                ios: {
+                  shadowColor: '#3730A3',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 0,
+                },
+                android: {
+                  elevation: 4,
+                },
+                web: {
+                  boxShadow: '0 4px 0 #3730A3, 0 4px 8px rgba(0, 0, 0, 0.1)',
+                },
+              }),
+            }
+          ]} />
+
+          {/* Navigation Items */}
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
@@ -169,31 +156,30 @@ export default function FloatingTabBar({
               return (
                 <TouchableOpacity
                   key={tab.name}
-                  style={styles.tab}
-                  onPress={() => handleTabPress(tab.route)}
+                  style={styles.navItem}
+                  onPress={() => handleTabPress(tab.route, index)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.tabContent}>
-                    <IconSymbol
-                      name={tab.icon}
-                      size={22}
-                      color={isActive ? themeColors.primary : themeColors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        { color: themeColors.textSecondary },
-                        isActive && { color: themeColors.primary, fontWeight: '600' },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </View>
+                  <IconSymbol
+                    name={tab.icon}
+                    size={22}
+                    color={isActive ? '#FFFFFF' : '#6B7280'}
+                  />
+                  <Text
+                    style={[
+                      styles.navLabel,
+                      {
+                        color: isActive ? '#FFFFFF' : '#6B7280',
+                      }
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-        </BlurView>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -209,42 +195,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    marginHorizontal: 16,
     alignSelf: 'center',
   },
-  blurContainer: {
+  navContainer: {
+    position: 'relative',
+    borderTopWidth: 2,
+    paddingVertical: 8,
     overflow: 'hidden',
   },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  indicator: {
+  navPill: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    bottom: 8,
-    borderRadius: 17,
+    bottom: 5.6,
+    height: '85%',
+    borderRadius: 12,
+    zIndex: 0,
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 60,
     alignItems: 'center',
-    paddingHorizontal: 8,
+    justifyContent: 'space-around',
+    paddingHorizontal: 0,
+    zIndex: 1,
   },
-  tab: {
+  navItem: {
     flex: 1,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    borderRadius: 12,
+    zIndex: 1,
   },
-  tabContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 2,
+  navLabel: {
+    fontSize: 13.6,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

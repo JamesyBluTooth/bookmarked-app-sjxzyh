@@ -80,6 +80,10 @@ const MAPPING = {
   "play.fill": "play-arrow",
   "pause.fill": "pause",
   "stop.fill": "stop",
+  
+  // Books & Reading
+  "book.fill": "menu-book",
+  "book": "menu-book",
 
   // System & Settings
   "gear": "settings",
@@ -139,6 +143,8 @@ const MAPPING = {
   "person.fill": "person",
   "person.2.fill": "group",
   "person.2": "group",
+  "person.3.fill": "groups",
+  "person.3": "groups",
   "person.circle.fill": "account-circle",
   "person.circle": "account-circle",
   "person.crop.circle.fill": "account-circle",
