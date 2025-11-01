@@ -93,53 +93,75 @@ export default function FloatingTabBar({
         {tabs.map((tab, index) => {
           const isActive = activeTabIndex === index;
 
-          const animatedIconStyle = useAnimatedStyle(() => {
-            const scale = interpolate(
-              animatedIndex.value,
-              [index - 1, index, index + 1],
-              [0, 1, 0],
-              'clamp'
-            );
-
-            return {
-              transform: [{ scale: 0.85 + scale * 0.15 }],
-            };
-          });
-
           return (
-            <TouchableOpacity
+            <TabButton
               key={tab.name}
-              style={styles.tab}
+              tab={tab}
+              index={index}
+              isActive={isActive}
+              animatedIndex={animatedIndex}
+              themeColors={themeColors}
               onPress={() => handleTabPress(tab.route)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.tabContent}>
-                <Animated.View style={[
-                  styles.iconContainer,
-                  animatedIconStyle,
-                  isActive && { backgroundColor: themeColors.primary }
-                ]}>
-                  <IconSymbol
-                    name={tab.icon}
-                    size={24}
-                    color={isActive ? '#FFFFFF' : themeColors.textSecondary}
-                  />
-                </Animated.View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: themeColors.textSecondary },
-                    isActive && { color: themeColors.text, fontWeight: '600' },
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            />
           );
         })}
       </View>
     </View>
+  );
+}
+
+interface TabButtonProps {
+  tab: TabBarItem;
+  index: number;
+  isActive: boolean;
+  animatedIndex: Animated.SharedValue<number>;
+  themeColors: any;
+  onPress: () => void;
+}
+
+function TabButton({ tab, index, isActive, animatedIndex, themeColors, onPress }: TabButtonProps) {
+  const animatedIconStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      animatedIndex.value,
+      [index - 1, index, index + 1],
+      [0, 1, 0],
+      'clamp'
+    );
+
+    return {
+      transform: [{ scale: 0.85 + scale * 0.15 }],
+    };
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.tab}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.tabContent}>
+        <Animated.View style={[
+          styles.iconContainer,
+          animatedIconStyle,
+          isActive && { backgroundColor: themeColors.primary }
+        ]}>
+          <IconSymbol
+            name={tab.icon}
+            size={24}
+            color={isActive ? '#FFFFFF' : themeColors.textSecondary}
+          />
+        </Animated.View>
+        <Text
+          style={[
+            styles.tabLabel,
+            { color: themeColors.textSecondary },
+            isActive && { color: themeColors.text, fontWeight: '600' },
+          ]}
+        >
+          {tab.label}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
