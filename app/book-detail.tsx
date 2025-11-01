@@ -34,6 +34,7 @@ export default function BookDetailScreen() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
 
   // Get book from Zustand store
   const getBookById = useAppStore((state) => state.getBookById);
@@ -201,16 +202,41 @@ export default function BookDetailScreen() {
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
   }, []);
 
-  const formatTime = useCallback((minutes: number) => {
+  const formatTime = useCallback((dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  }, []);
+
+  const formatDuration = useCallback((minutes: number) => {
     if (minutes < 60) {
-      return `${minutes}m`;
+      return `${minutes} minutes`;
     }
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }, []);
+
+  const toggleNoteExpansion = useCallback((noteId: string) => {
+    setExpandedNotes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(noteId)) {
+        newSet.delete(noteId);
+      } else {
+        newSet.add(noteId);
+      }
+      return newSet;
+    });
   }, []);
 
   // Memoize the sorted logs to prevent recalculation on every render
@@ -256,172 +282,236 @@ export default function BookDetailScreen() {
     );
   }
 
+  // Split genres if they exist
+  const genres = book.genre ? book.genre.split('/').map(g => g.trim()) : [];
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol name="chevron.left" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Book Details</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeIn} style={styles.content}>
-          <View style={styles.coverContainer}>
-            {book.coverUrl ? (
-              <Image source={{ uri: book.coverUrl }} style={styles.cover} resizeMode="cover" />
-            ) : (
-              <View style={[styles.coverPlaceholder, { backgroundColor: theme.card }]}>
-                <IconSymbol name="book" size={60} color={theme.textSecondary} />
-              </View>
-            )}
-          </View>
+        {/* Top Half - Primary Color Background */}
+        <View style={[styles.topSection, { backgroundColor: theme.primary }]}>
+          {/* Back Button */}
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButtonTop}
+          >
+            <IconSymbol name="chevron.left" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
 
-          <View style={styles.infoSection}>
-            <Text style={[styles.title, { color: theme.text }]}>{book.title}</Text>
-            <Text style={[styles.author, { color: theme.textSecondary }]}>{book.author}</Text>
-            
-            {book.genre && (
-              <View style={[styles.genreBadge, { backgroundColor: theme.card }]}>
-                <Text style={[styles.genreText, { color: theme.primary }]}>{book.genre}</Text>
-              </View>
-            )}
-
-            {book.synopsis && (
-              <View style={styles.synopsisContainer}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Synopsis</Text>
-                <Text style={[styles.synopsis, { color: theme.textSecondary }]}>
-                  {book.synopsis}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.metadataRow}>
-              <View style={styles.metadataItem}>
-                <IconSymbol name="book.pages" size={20} color={theme.textSecondary} />
-                <Text style={[styles.metadataText, { color: theme.textSecondary }]}>
-                  {book.pageCount} pages
-                </Text>
-              </View>
-              {book.publishedDate && (
-                <View style={styles.metadataItem}>
-                  <IconSymbol name="calendar" size={20} color={theme.textSecondary} />
-                  <Text style={[styles.metadataText, { color: theme.textSecondary }]}>
-                    {book.publishedDate}
-                  </Text>
+          <View style={styles.topContent}>
+            {/* Book Cover - Left Aligned */}
+            <View style={styles.coverSection}>
+              {book.coverUrl ? (
+                <Image 
+                  source={{ uri: book.coverUrl }} 
+                  style={styles.coverSmall} 
+                  resizeMode="cover" 
+                />
+              ) : (
+                <View style={[styles.coverPlaceholderSmall, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <IconSymbol name="book" size={40} color="#FFFFFF" />
                 </View>
               )}
             </View>
-          </View>
 
-          <View style={styles.progressSection}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Progress</Text>
-            <View style={[
-              styles.progressCard, 
-              { 
-                backgroundColor: isDark ? theme.card : '#FFFFFF',
-                borderColor: isDark ? theme.border : '#E0E0E0',
-              }
-            ]}>
-              <View style={styles.progressInfo}>
-                <Text style={[styles.progressText, { color: theme.text }]}>
-                  {book.currentPage} / {book.pageCount} pages
+            {/* Title and Author - Middle */}
+            <View style={styles.titleSection}>
+              <Text style={styles.titleWhite} numberOfLines={3}>
+                {book.title}
+              </Text>
+              <Text style={styles.authorWhite} numberOfLines={2}>
+                {book.author}
+              </Text>
+              {book.publishedDate && (
+                <Text style={styles.dateStarted}>
+                  Date Started
                 </Text>
-                <Text style={[styles.progressPercentage, { color: theme.primary }]}>
-                  {book.progress}%
+              )}
+              {book.dateCompleted && (
+                <Text style={styles.dateFinished}>
+                  Date Finished (&quot;---&quot; until complete)
                 </Text>
+              )}
+            </View>
+
+            {/* Genres Card - Right */}
+            {genres.length > 0 && (
+              <View style={styles.genresCard}>
+                <Text style={styles.genresTitle}>Genres</Text>
+                <View style={styles.genresContainer}>
+                  {genres.map((genre, index) => (
+                    <View 
+                      key={index} 
+                      style={[styles.genrePill, { borderColor: theme.primary }]}
+                    >
+                      <Text style={[styles.genreText, { color: theme.primary }]}>
+                        {genre}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-              <ProgressBar progress={book.progress} height={8} />
+            )}
+          </View>
+        </View>
+
+        {/* Bottom Half - White Background */}
+        <View style={[styles.bottomSection, { backgroundColor: theme.background }]}>
+          {/* Progress Card - Bridging Section */}
+          <View style={[
+            styles.progressCard,
+            {
+              backgroundColor: isDark ? theme.card : '#FFFFFF',
+              borderColor: isDark ? theme.border : '#E0E0E0',
+            }
+          ]}>
+            <Text style={[styles.progressTitle, { color: theme.primary }]}>
+              Progress (%)
+            </Text>
+            <View style={styles.progressBarContainer}>
+              <ProgressBar progress={book.progress} height={12} />
+            </View>
+            <View style={styles.progressInfo}>
+              <Text style={[styles.progressPages, { color: theme.text }]}>
+                {book.currentPage} / {book.pageCount} pages
+              </Text>
+              <Text style={[styles.progressPercentage, { color: theme.primary }]}>
+                {book.progress}%
+              </Text>
             </View>
           </View>
 
-          <View style={styles.actionsSection}>
+          {/* Action Buttons */}
+          <View style={styles.actionsRow}>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.primary }]}
+              style={[
+                styles.actionButtonOutlined,
+                { borderColor: theme.primary }
+              ]}
               onPress={() => setShowProgressModal(true)}
               activeOpacity={0.8}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Add Progress</Text>
+              <Text style={[styles.actionButtonTextOutlined, { color: theme.primary }]}>
+                + Progress
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
-                styles.actionButton, 
-                { 
-                  backgroundColor: isDark ? theme.card : '#FFFFFF',
-                  borderColor: isDark ? theme.border : '#E0E0E0',
-                  borderWidth: 2,
-                }
+                styles.actionButtonOutlined,
+                { borderColor: theme.primary }
               ]}
               onPress={() => setShowNoteModal(true)}
               activeOpacity={0.8}
             >
-              <IconSymbol name="note.text" size={24} color={theme.primary} />
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Add Note</Text>
+              <Text style={[styles.actionButtonTextOutlined, { color: theme.primary }]}>
+                + Note
+              </Text>
             </TouchableOpacity>
 
-            {book.status !== 'completed' && (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.success }]}
-                onPress={() => setShowCompleteModal(true)}
-                activeOpacity={0.8}
-              >
-                <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Complete Book</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[
+                styles.actionButtonFilled,
+                { backgroundColor: theme.primary }
+              ]}
+              onPress={() => setShowCompleteModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionButtonTextFilled}>
+                ✓ Complete
+              </Text>
+            </TouchableOpacity>
           </View>
 
+          {/* Activity Log Section */}
           {allLogs.length > 0 && (
-            <View style={styles.logsSection}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Activity Log</Text>
-              {allLogs.map((log, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.logCard, 
-                    { 
-                      backgroundColor: isDark ? theme.card : '#FFFFFF',
-                      borderColor: isDark ? theme.border : '#E0E0E0',
-                    }
-                  ]}
-                >
-                  <View style={styles.logHeader}>
-                    <View style={styles.logIconContainer}>
-                      <IconSymbol
-                        name={log.type === 'progress' ? 'chart.bar.fill' : 'note.text'}
-                        size={20}
-                        color={theme.primary}
-                      />
+            <View style={styles.activityLogSection}>
+              <Text style={[styles.activityLogTitle, { color: theme.primary }]}>
+                Activity Log
+              </Text>
+              
+              <ScrollView 
+                style={styles.activityLogScroll}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+              >
+                {allLogs.map((log, index) => (
+                  <View key={index} style={styles.logRow}>
+                    {/* Timeline */}
+                    <View style={styles.timeline}>
+                      <View 
+                        style={[
+                          styles.timelineCircle,
+                          { 
+                            backgroundColor: log.type === 'progress' 
+                              ? 'rgba(98, 0, 238, 0.1)' 
+                              : 'rgba(255, 215, 64, 0.2)' 
+                          }
+                        ]}
+                      >
+                        <IconSymbol
+                          name={log.type === 'progress' ? 'book.fill' : 'pencil'}
+                          size={16}
+                          color={log.type === 'progress' ? theme.primary : '#FFD740'}
+                        />
+                      </View>
+                      {index < allLogs.length - 1 && (
+                        <View style={[styles.timelineLine, { backgroundColor: theme.border }]} />
+                      )}
                     </View>
-                    <View style={styles.logInfo}>
-                      <Text style={[styles.logDate, { color: theme.textSecondary }]}>
-                        {formatDate(log.data.timestamp)}
-                      </Text>
-                      {log.type === 'progress' && (
-                        <Text style={[styles.logDetail, { color: theme.text }]}>
-                          Read {log.data.pagesRead} pages • {formatTime(log.data.timeSpent)}
+
+                    {/* Log Card */}
+                    <View 
+                      style={[
+                        styles.logCard,
+                        {
+                          backgroundColor: isDark ? theme.card : '#FFFFFF',
+                          borderColor: isDark ? theme.border : '#E0E0E0',
+                        }
+                      ]}
+                    >
+                      <View style={styles.logHeader}>
+                        <Text style={[styles.logDate, { color: theme.text }]}>
+                          {formatDate(log.data.timestamp)}
                         </Text>
+                        <Text style={[styles.logTime, { color: theme.textSecondary }]}>
+                          {formatTime(log.data.timestamp)}
+                        </Text>
+                      </View>
+
+                      {log.type === 'progress' && (
+                        <Text style={[styles.logContent, { color: theme.text }]}>
+                          Read {log.data.pagesRead} pages in {formatDuration(log.data.timeSpent)}
+                        </Text>
+                      )}
+
+                      {log.type === 'note' && (
+                        <View>
+                          <Text 
+                            style={[styles.logContent, { color: theme.text }]}
+                            numberOfLines={expandedNotes.has(log.data.id) ? undefined : 2}
+                          >
+                            {log.data.content}
+                          </Text>
+                          {log.data.content.length > 100 && (
+                            <TouchableOpacity 
+                              onPress={() => toggleNoteExpansion(log.data.id)}
+                              style={styles.readMoreButton}
+                            >
+                              <Text style={[styles.readMoreText, { color: theme.primary }]}>
+                                {expandedNotes.has(log.data.id) ? 'Show Less' : 'Read More'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       )}
                     </View>
                   </View>
-                  {log.type === 'note' && (
-                    <Text style={[styles.noteContent, { color: theme.text }]}>
-                      {log.data.content}
-                    </Text>
-                  )}
-                  {log.type === 'progress' && (
-                    <View style={styles.progressLogBar}>
-                      <ProgressBar progress={log.data.progressPercentage} height={4} />
-                    </View>
-                  )}
-                </View>
-              ))}
+                ))}
+              </ScrollView>
             </View>
           )}
-        </Animated.View>
+        </View>
       </ScrollView>
 
       <AddProgressModal
@@ -452,22 +542,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  headerSpacer: {
-    width: 40,
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -477,6 +553,16 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 8,
   },
   errorContainer: {
     flex: 1,
@@ -488,168 +574,228 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  scrollView: {
-    flex: 1,
+
+  // Top Section Styles
+  topSection: {
+    paddingTop: 16,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
   },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
+  backButtonTop: {
+    padding: 8,
+    marginBottom: 16,
   },
-  coverContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+  topContent: {
+    flexDirection: 'row',
+    gap: 16,
   },
-  cover: {
-    width: 200,
-    height: 300,
+  coverSection: {
+    width: 120,
+  },
+  coverSmall: {
+    width: 120,
+    height: 180,
     borderRadius: 12,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
-    elevation: 4,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.3)',
+    elevation: 6,
   },
-  coverPlaceholder: {
-    width: 200,
-    height: 300,
+  coverPlaceholderSmall: {
+    width: 120,
+    height: 180,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoSection: {
-    marginBottom: 24,
+  titleSection: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 4,
   },
-  title: {
-    fontSize: 28,
+  titleWhite: {
+    fontSize: 22,
     fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 8,
-    textAlign: 'center',
   },
-  author: {
+  authorWhite: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 12,
+  },
+  dateStarted: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 4,
+  },
+  dateFinished: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  genresCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    width: 160,
+    alignSelf: 'flex-start',
+  },
+  genresTitle: {
     fontSize: 18,
-    marginBottom: 16,
+    fontWeight: '700',
+    color: '#6200EE',
+    marginBottom: 12,
     textAlign: 'center',
   },
-  genreBadge: {
-    alignSelf: 'center',
+  genresContainer: {
+    gap: 8,
+  },
+  genrePill: {
+    borderWidth: 2,
+    borderRadius: 20,
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 16,
+    alignItems: 'center',
   },
   genreText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  synopsisContainer: {
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  synopsis: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  metadataRow: {
-    flexDirection: 'row',
-    gap: 24,
-    marginTop: 16,
-    justifyContent: 'center',
-  },
-  metadataItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metadataText: {
-    fontSize: 14,
-  },
-  progressSection: {
-    marginBottom: 24,
+
+  // Bottom Section Styles
+  bottomSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
   progressCard: {
-    padding: 16,
     borderRadius: 18,
     borderWidth: 2,
-    marginHorizontal: 4,
+    padding: 20,
+    marginBottom: 20,
     boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
+  },
+  progressTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  progressBarContainer: {
+    marginBottom: 12,
   },
   progressInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  progressText: {
-    fontSize: 16,
+  progressPages: {
+    fontSize: 14,
     fontWeight: '600',
   },
   progressPercentage: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
-  actionsSection: {
+
+  // Action Buttons
+  actionsRow: {
+    flexDirection: 'row',
     gap: 12,
     marginBottom: 24,
   },
-  actionButton: {
-    flexDirection: 'row',
+  actionButtonOutlined: {
+    flex: 1,
+    borderWidth: 2,
+    borderRadius: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 18,
-    gap: 8,
-    marginHorizontal: 4,
-    boxShadow: '0 3px 0 #D0D0D0',
-    elevation: 3,
+    backgroundColor: 'transparent',
   },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  actionButtonTextOutlined: {
+    fontSize: 15,
     fontWeight: '600',
   },
-  logsSection: {
-    marginTop: 8,
+  actionButtonFilled: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonTextFilled: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Activity Log
+  activityLogSection: {
+    flex: 1,
+    minHeight: 300,
+  },
+  activityLogTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  activityLogScroll: {
+    flex: 1,
+  },
+  logRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  timeline: {
+    width: 40,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  timelineCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    marginTop: 4,
+    minHeight: 40,
   },
   logCard: {
-    padding: 16,
+    flex: 1,
     borderRadius: 18,
     borderWidth: 2,
-    marginBottom: 12,
-    marginHorizontal: 4,
+    padding: 16,
     boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
   },
   logHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-  },
-  logIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logInfo: {
-    flex: 1,
+    marginBottom: 8,
   },
   logDate: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  logDetail: {
     fontSize: 14,
     fontWeight: '600',
   },
-  noteContent: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 12,
+  logTime: {
+    fontSize: 12,
   },
-  progressLogBar: {
-    marginTop: 12,
+  logContent: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  readMoreButton: {
+    marginTop: 8,
+  },
+  readMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
