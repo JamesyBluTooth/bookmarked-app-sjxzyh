@@ -10,14 +10,15 @@ import TopBar from '@/components/TopBar';
 import StatCard from '@/components/StatCard';
 import BookCard from '@/components/BookCard';
 import ProgressBar from '@/components/ProgressBar';
-import SplashScreen from '@/components/SplashScreen';
 import { useAppStore } from '@/stores/appStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SPLASH_SHOWN_KEY = '@bookmarked_splash_shown';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
-  const [showSplash, setShowSplash] = useState(true);
   const [greeting, setGreeting] = useState('');
 
   // Get data from Zustand store
@@ -26,14 +27,6 @@ export default function DashboardScreen() {
   const challenge = useAppStore((state) => state.challenge);
   const user = useAppStore((state) => state.user);
   const friends = useAppStore((state) => state.friends);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -45,10 +38,6 @@ export default function DashboardScreen() {
       setGreeting('Good evening');
     }
   }, []);
-
-  if (showSplash) {
-    return <SplashScreen />;
-  }
 
   const currentlyReading = books.filter(book => book.status === 'reading');
   const activeFriends = friends.filter(friend => friend.isActive);
@@ -65,10 +54,7 @@ export default function DashboardScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          Platform.OS !== 'ios' && styles.contentWithTabBar
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.greetingContainer}>
@@ -204,9 +190,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 20,
-  },
-  contentWithTabBar: {
     paddingBottom: 100,
   },
   greetingContainer: {
@@ -246,8 +229,22 @@ const styles = StyleSheet.create({
   challengeCard: {
     padding: 16,
     borderRadius: 18,
-    boxShadow: '0px 3px 0px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#D0D0D0',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+      },
+      android: {
+        elevation: 0,
+      },
+      web: {
+        boxShadow: '0 3px 0 #D0D0D0',
+      },
+    }),
   },
   challengeHeader: {
     flexDirection: 'row',
@@ -287,8 +284,22 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#D0D0D0',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+      },
+      android: {
+        elevation: 0,
+      },
+      web: {
+        boxShadow: '0 3px 0 #D0D0D0',
+      },
+    }),
   },
   friendAvatar: {
     width: 48,
