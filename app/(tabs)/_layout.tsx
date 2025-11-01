@@ -16,7 +16,7 @@ export default function TabLayout() {
     {
       name: 'books',
       route: '/(tabs)/books',
-      icon: 'bookmark.fill',
+      icon: 'book.fill',
       label: 'Books',
     },
     {
