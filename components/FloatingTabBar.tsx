@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,12 @@ import { useRouter, usePathname } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+} from 'react-native-reanimated';
 
 export interface TabBarItem {
   name: string;
@@ -60,6 +66,17 @@ export default function FloatingTabBar({
     return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 
+  // Animated value for pill indicator position
+  const animatedIndex = useSharedValue(activeTabIndex);
+
+  useEffect(() => {
+    animatedIndex.value = withSpring(activeTabIndex, {
+      damping: 20,
+      stiffness: 90,
+      mass: 0.5,
+    });
+  }, [activeTabIndex]);
+
   const handleTabPress = (route: string) => {
     router.push(route);
   };
@@ -76,6 +93,19 @@ export default function FloatingTabBar({
         {tabs.map((tab, index) => {
           const isActive = activeTabIndex === index;
 
+          const animatedIconStyle = useAnimatedStyle(() => {
+            const scale = interpolate(
+              animatedIndex.value,
+              [index - 1, index, index + 1],
+              [0, 1, 0],
+              'clamp'
+            );
+
+            return {
+              transform: [{ scale: 0.85 + scale * 0.15 }],
+            };
+          });
+
           return (
             <TouchableOpacity
               key={tab.name}
@@ -84,8 +114,9 @@ export default function FloatingTabBar({
               activeOpacity={0.7}
             >
               <View style={styles.tabContent}>
-                <View style={[
+                <Animated.View style={[
                   styles.iconContainer,
+                  animatedIconStyle,
                   isActive && { backgroundColor: themeColors.primary }
                 ]}>
                   <IconSymbol
@@ -93,7 +124,7 @@ export default function FloatingTabBar({
                     size={24}
                     color={isActive ? '#FFFFFF' : themeColors.textSecondary}
                   />
-                </View>
+                </Animated.View>
                 <Text
                   style={[
                     styles.tabLabel,

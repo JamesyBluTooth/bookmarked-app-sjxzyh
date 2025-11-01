@@ -77,69 +77,86 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
     }
   };
 
-  return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          backgroundColor: isDark ? theme.card : '#FFFFFF',
-          borderColor: isDark ? theme.border : '#E0E0E0',
-          transform: [{ translateY }],
-        },
-      ]}
-    >
-      <View style={styles.header}>
-        <Image source={{ uri: activity.user.avatar }} style={styles.avatar} />
-        <View style={styles.headerText}>
-          <Text style={[styles.userName, { color: theme.text }]}>
-            {activity.user.name}
-          </Text>
-          <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
-            {getTimeAgo(activity.timestamp)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.activityIcon,
-            { backgroundColor: getActivityColor() + '20' },
-          ]}
-        >
-          <IconSymbol
-            name={getActivityIcon()}
-            size={20}
-            color={getActivityColor()}
-          />
-        </View>
+  const renderAvatar = () => {
+    if (activity.friend.avatarUrl) {
+      return <Image source={{ uri: activity.friend.avatarUrl }} style={styles.avatar} />;
+    }
+    
+    return (
+      <View style={[styles.avatarFallback, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <IconSymbol name="person.fill" size={20} color={theme.textSecondary} />
       </View>
+    );
+  };
 
-      <Text style={[styles.activityText, { color: theme.text }]}>
-        {activity.text}
-      </Text>
-
-      {activity.bookTitle && (
-        <View style={[styles.bookInfo, { backgroundColor: theme.background }]}>
-          <IconSymbol name="book.fill" size={16} color={theme.textSecondary} />
-          <Text style={[styles.bookTitle, { color: theme.text }]}>
-            {activity.bookTitle}
-          </Text>
+  return (
+    <TouchableOpacity
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+      disabled={!onReact}
+    >
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: isDark ? theme.card : '#FFFFFF',
+            borderColor: isDark ? theme.border : '#E0E0E0',
+            transform: [{ translateY }],
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          {renderAvatar()}
+          <View style={styles.headerText}>
+            <Text style={[styles.userName, { color: theme.text }]}>
+              {activity.friend.name}
+            </Text>
+            <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
+              {getTimeAgo(activity.timestamp)}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.activityIcon,
+              { backgroundColor: getActivityColor() + '20' },
+            ]}
+          >
+            <IconSymbol
+              name={getActivityIcon()}
+              size={20}
+              color={getActivityColor()}
+            />
+          </View>
         </View>
-      )}
 
-      {onReact && (
-        <TouchableOpacity
-          style={[styles.reactButton, { borderColor: theme.border }]}
-          onPress={onReact}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          activeOpacity={0.8}
-        >
-          <IconSymbol name="hand.thumbsup" size={16} color={theme.primary} />
-          <Text style={[styles.reactText, { color: theme.primary }]}>
-            Congratulate
-          </Text>
-        </TouchableOpacity>
-      )}
-    </Animated.View>
+        <Text style={[styles.activityText, { color: theme.text }]}>
+          {activity.message} {activity.book.title}
+        </Text>
+
+        {activity.book.title && (
+          <View style={[styles.bookInfo, { backgroundColor: theme.background }]}>
+            <IconSymbol name="book.fill" size={16} color={theme.textSecondary} />
+            <Text style={[styles.bookTitle, { color: theme.text }]}>
+              {activity.book.title}
+            </Text>
+          </View>
+        )}
+
+        {onReact && (
+          <TouchableOpacity
+            style={[styles.reactButton, { borderColor: theme.border }]}
+            onPress={onReact}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="hand.thumbsup" size={16} color={theme.primary} />
+            <Text style={[styles.reactText, { color: theme.primary }]}>
+              Congratulate
+            </Text>
+          </TouchableOpacity>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
   );
 }
 
@@ -163,6 +180,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+  },
+  avatarFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
   },
   headerText: {
     flex: 1,

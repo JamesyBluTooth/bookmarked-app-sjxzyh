@@ -25,11 +25,17 @@ export interface Friend {
 
 export interface Activity {
   id: string;
+  user: {
+    name: string;
+    avatar: string;
+  };
   friend: Friend;
   type: 'finished' | 'milestone' | 'started';
   book: Book;
   timestamp: Date;
   message: string;
+  text?: string;
+  bookTitle?: string;
 }
 
 export interface Group {
@@ -153,27 +159,45 @@ export const mockFriends: Friend[] = [
 export const mockActivities: Activity[] = [
   {
     id: '1',
+    user: {
+      name: mockFriends[0].name,
+      avatar: mockFriends[0].avatarUrl,
+    },
     friend: mockFriends[0],
     type: 'finished',
     book: mockBooks[1],
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
     message: 'just finished reading',
+    text: 'just finished reading Atomic Habits',
+    bookTitle: mockBooks[1].title,
   },
   {
     id: '2',
+    user: {
+      name: mockFriends[1].name,
+      avatar: mockFriends[1].avatarUrl,
+    },
     friend: mockFriends[1],
     type: 'milestone',
     book: mockBooks[0],
     timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
     message: 'reached 50% progress on',
+    text: 'reached 50% progress on The Midnight Library',
+    bookTitle: mockBooks[0].title,
   },
   {
     id: '3',
+    user: {
+      name: mockFriends[3].name,
+      avatar: mockFriends[3].avatarUrl,
+    },
     friend: mockFriends[3],
     type: 'started',
     book: mockBooks[4],
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
     message: 'started reading',
+    text: 'started reading Dune',
+    bookTitle: mockBooks[4].title,
   },
 ];
 

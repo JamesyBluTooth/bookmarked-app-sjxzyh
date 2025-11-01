@@ -26,6 +26,37 @@ export default function FriendsScreen() {
     Alert.alert('Declined', 'Friend request declined');
   };
 
+  const renderAvatar = (avatarUrl: string | undefined, size: number = 70) => {
+    if (avatarUrl) {
+      return (
+        <Image 
+          source={{ uri: avatarUrl }} 
+          style={[
+            styles.friendImage, 
+            { width: size, height: size, borderRadius: size / 2 }
+          ]} 
+        />
+      );
+    }
+    
+    // Fallback to person outline icon
+    return (
+      <View style={[
+        styles.avatarFallback,
+        { 
+          width: size, 
+          height: size, 
+          borderRadius: size / 2,
+          backgroundColor: theme.card,
+          borderWidth: 2,
+          borderColor: theme.border,
+        }
+      ]}>
+        <IconSymbol name="person.fill" size={size * 0.5} color={theme.textSecondary} />
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <TopBar
@@ -60,7 +91,7 @@ export default function FriendsScreen() {
                 onPress={() => Alert.alert('Friend Profile', friend.name)}
                 activeOpacity={0.7}
               >
-                <Image source={{ uri: friend.avatarUrl }} style={styles.friendImage} />
+                {renderAvatar(friend.avatarUrl, 70)}
                 {friend.isActive && (
                   <View style={[styles.activeIndicator, { backgroundColor: theme.success }]} />
                 )}
@@ -81,8 +112,17 @@ export default function FriendsScreen() {
               Friend Requests
             </Text>
             {friendRequests.map(request => (
-              <View key={request.id} style={[styles.requestCard, { backgroundColor: theme.card }]}>
-                <Image source={{ uri: request.friend.avatarUrl }} style={styles.requestAvatar} />
+              <View 
+                key={request.id} 
+                style={[
+                  styles.requestCard, 
+                  { 
+                    backgroundColor: isDark ? theme.card : '#FFFFFF',
+                    borderColor: isDark ? theme.border : '#E0E0E0',
+                  }
+                ]}
+              >
+                {renderAvatar(request.friend.avatarUrl, 50)}
                 <View style={styles.requestInfo}>
                   <Text style={[styles.requestName, { color: theme.text }]}>
                     {request.friend.name}
@@ -160,9 +200,11 @@ const styles = StyleSheet.create({
     width: 90,
   },
   friendImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    marginBottom: 8,
+  },
+  avatarFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
   activeIndicator: {
@@ -189,15 +231,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 18,
+    borderWidth: 2,
     marginBottom: 12,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
   },
   requestAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     marginRight: 12,
   },
   requestInfo: {

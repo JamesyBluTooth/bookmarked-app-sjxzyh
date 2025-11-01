@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,10 +41,61 @@ export default function BookDetailScreen() {
   const updateUserStats = useAppStore((state) => state.updateUserStats);
   const userStats = useAppStore((state) => state.userStats);
 
-  useEffect(() => {
-    const isbn = params.isbn as string;
-    const bookDataParam = params.bookData as string;
+  // Memoize the ISBN to prevent unnecessary re-fetches
+  const isbn = useMemo(() => params.isbn as string, [params.isbn]);
+  const bookDataParam = useMemo(() => params.bookData as string, [params.bookData]);
 
+  // Fetch book data only when ISBN changes
+  const fetchBookData = useCallback(async (isbnToFetch: string) => {
+    if (!isbnToFetch) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('Fetching book data for ISBN:', isbnToFetch);
+      const response = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnToFetch}`
+      );
+      const data = await response.json();
+
+      if (data.items && data.items.length > 0) {
+        const googleBook: GoogleBookData = data.items[0];
+        const volumeInfo = googleBook.volumeInfo;
+
+        const bookData: BookData = {
+          id: googleBook.id,
+          isbn: isbnToFetch,
+          title: volumeInfo.title,
+          author: volumeInfo.authors?.[0] || 'Unknown Author',
+          coverUrl: volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || '',
+          synopsis: volumeInfo.description,
+          pageCount: volumeInfo.pageCount || 0,
+          genre: volumeInfo.categories?.[0],
+          publisher: volumeInfo.publisher,
+          publishedDate: volumeInfo.publishedDate,
+          status: 'to-read',
+          currentPage: 0,
+          progress: 0,
+          notes: [],
+          progressEntries: [],
+          dateAdded: new Date().toISOString(),
+        };
+
+        setBook(bookData);
+      } else {
+        console.log('No book found for ISBN:', isbnToFetch);
+      }
+    } catch (error) {
+      console.error('Error fetching book data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load book data only once when component mounts or ISBN changes
+  useEffect(() => {
     if (bookDataParam) {
       try {
         const parsedBook = JSON.parse(bookDataParam);
@@ -66,49 +117,9 @@ export default function BookDetailScreen() {
     } else {
       setLoading(false);
     }
-  }, [params]);
+  }, [isbn, bookDataParam, fetchBookData, getBookById]);
 
-  const fetchBookData = async (isbn: string) => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-      );
-      const data = await response.json();
-
-      if (data.items && data.items.length > 0) {
-        const googleBook: GoogleBookData = data.items[0];
-        const volumeInfo = googleBook.volumeInfo;
-
-        const bookData: BookData = {
-          id: googleBook.id,
-          isbn: isbn,
-          title: volumeInfo.title,
-          author: volumeInfo.authors?.[0] || 'Unknown Author',
-          coverUrl: volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || '',
-          synopsis: volumeInfo.description,
-          pageCount: volumeInfo.pageCount || 0,
-          genre: volumeInfo.categories?.[0],
-          publisher: volumeInfo.publisher,
-          publishedDate: volumeInfo.publishedDate,
-          status: 'to-read',
-          currentPage: 0,
-          progress: 0,
-          notes: [],
-          progressEntries: [],
-          dateAdded: new Date().toISOString(),
-        };
-
-        setBook(bookData);
-      }
-    } catch (error) {
-      console.error('Error fetching book data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddProgress = (pagesRead: number, timeSpent: number) => {
+  const handleAddProgress = useCallback((pagesRead: number, timeSpent: number) => {
     if (!book) return;
 
     const newCurrentPage = Math.min(book.currentPage + pagesRead, book.pageCount);
@@ -136,9 +147,9 @@ export default function BookDetailScreen() {
     setShowProgressModal(false);
 
     console.log('Progress added:', progressEntry);
-  };
+  }, [book, updateBook]);
 
-  const handleAddNote = (content: string, pageNumber?: number) => {
+  const handleAddNote = useCallback((content: string, pageNumber?: number) => {
     if (!book) return;
 
     const note: BookNote = {
@@ -158,9 +169,9 @@ export default function BookDetailScreen() {
     setShowNoteModal(false);
 
     console.log('Note added:', note);
-  };
+  }, [book, updateBook]);
 
-  const handleCompleteBook = (rating?: number, review?: string) => {
+  const handleCompleteBook = useCallback((rating?: number, review?: string) => {
     if (!book) return;
 
     const updatedBook: BookData = {
@@ -186,21 +197,35 @@ export default function BookDetailScreen() {
 
     setShowCompleteModal(false);
     console.log('Book completed:', updatedBook);
-  };
+  }, [book, updateBook, updateUserStats, userStats]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }, []);
 
-  const formatTime = (minutes: number) => {
+  const formatTime = useCallback((minutes: number) => {
     if (minutes < 60) {
       return `${minutes}m`;
     }
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
+  }, []);
+
+  // Memoize the sorted logs to prevent recalculation on every render
+  const allLogs = useMemo(() => {
+    if (!book) return [];
+    
+    return [
+      ...book.progressEntries.map(entry => ({ type: 'progress' as const, data: entry })),
+      ...book.notes.map(note => ({ type: 'note' as const, data: note })),
+    ].sort((a, b) => {
+      const timeA = new Date(a.data.timestamp).getTime();
+      const timeB = new Date(b.data.timestamp).getTime();
+      return timeB - timeA;
+    });
+  }, [book]);
 
   if (loading) {
     return (
@@ -230,15 +255,6 @@ export default function BookDetailScreen() {
       </SafeAreaView>
     );
   }
-
-  const allLogs = [
-    ...book.progressEntries.map(entry => ({ type: 'progress' as const, data: entry })),
-    ...book.notes.map(note => ({ type: 'note' as const, data: note })),
-  ].sort((a, b) => {
-    const timeA = new Date(a.data.timestamp).getTime();
-    const timeB = new Date(b.data.timestamp).getTime();
-    return timeB - timeA;
-  });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
@@ -301,7 +317,13 @@ export default function BookDetailScreen() {
 
           <View style={styles.progressSection}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Progress</Text>
-            <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
+            <View style={[
+              styles.progressCard, 
+              { 
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: isDark ? theme.border : '#E0E0E0',
+              }
+            ]}>
               <View style={styles.progressInfo}>
                 <Text style={[styles.progressText, { color: theme.text }]}>
                   {book.currentPage} / {book.pageCount} pages
@@ -325,7 +347,14 @@ export default function BookDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.card }]}
+              style={[
+                styles.actionButton, 
+                { 
+                  backgroundColor: isDark ? theme.card : '#FFFFFF',
+                  borderColor: isDark ? theme.border : '#E0E0E0',
+                  borderWidth: 2,
+                }
+              ]}
               onPress={() => setShowNoteModal(true)}
               activeOpacity={0.8}
             >
@@ -349,7 +378,16 @@ export default function BookDetailScreen() {
             <View style={styles.logsSection}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Activity Log</Text>
               {allLogs.map((log, index) => (
-                <View key={index} style={[styles.logCard, { backgroundColor: theme.card }]}>
+                <View 
+                  key={index} 
+                  style={[
+                    styles.logCard, 
+                    { 
+                      backgroundColor: isDark ? theme.card : '#FFFFFF',
+                      borderColor: isDark ? theme.border : '#E0E0E0',
+                    }
+                  ]}
+                >
                   <View style={styles.logHeader}>
                     <View style={styles.logIconContainer}>
                       <IconSymbol
@@ -531,9 +569,11 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     padding: 16,
-    borderRadius: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    borderRadius: 18,
+    borderWidth: 2,
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
+    elevation: 3,
   },
   progressInfo: {
     flexDirection: 'row',
@@ -558,10 +598,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 18,
     gap: 8,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
+    elevation: 3,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -573,10 +614,12 @@ const styles = StyleSheet.create({
   },
   logCard: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 18,
+    borderWidth: 2,
     marginBottom: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    marginHorizontal: 4,
+    boxShadow: '0 3px 0 #D0D0D0',
+    elevation: 3,
   },
   logHeader: {
     flexDirection: 'row',
