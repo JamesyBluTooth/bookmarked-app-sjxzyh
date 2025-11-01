@@ -51,9 +51,9 @@ export interface GoogleBookData {
     };
     publisher?: string;
     publishedDate?: string;
-    industryIdentifiers?: Array<{
+    industryIdentifiers?: {
       type: string;
       identifier: string;
-    }>;
+    }[];
   };
 }

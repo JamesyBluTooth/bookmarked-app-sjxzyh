@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Image, Alert } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
+import { syncService } from '@/services/syncService';
 
 export default function ProfileScreen() {
   const user = useAppStore((state) => state.user);
@@ -81,7 +82,6 @@ export default function ProfileScreen() {
     }
 
     try {
-      const { syncService } = require('@/services/syncService');
       const success = await syncService.forceSyncNow();
       if (success) {
         Alert.alert('Success', 'Data synced successfully');
