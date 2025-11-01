@@ -1,172 +1,174 @@
 
-# Supabase Setup Instructions for Bookmarked
+# Supabase Setup for Bookmarked
 
-This app uses **Zustand** for state management with **AsyncStorage** for local persistence and **Supabase** for cloud synchronization.
+This document contains the SQL commands needed to set up your Supabase database for the Bookmarked app.
 
-## Features
+## Prerequisites
 
-- ✅ **Offline-First**: All data is stored locally using AsyncStorage
-- ✅ **Automatic Sync**: Syncs to Supabase every 5 minutes when online
-- ✅ **Conflict Resolution**: Most recent version always wins
-- ✅ **Background Sync**: Syncs quietly in the background
-- ✅ **Cross-Device**: Sign in on a new device and your data syncs automatically
+1. Create a Supabase project at https://supabase.com
+2. Go to the SQL Editor in your Supabase dashboard
+3. Run the following SQL commands
 
-## How It Works
+## Database Schema
 
-1. **Local Storage**: All app data (books, friends, activities, etc.) is stored in Zustand and persisted to AsyncStorage
-2. **Periodic Sync**: Every 5 minutes, the app compresses and uploads a snapshot to Supabase
-3. **On Startup**: The app checks Supabase for an existing snapshot and restores it if newer
-4. **Offline Mode**: The app works fully offline; sync resumes when connection is available
+### 1. User Profiles Table
 
-## Supabase Setup (Optional)
+This table stores user profile information and onboarding status.
 
-To enable cloud sync, follow these steps:
-
-### 1. Create a Supabase Project
-
-1. Go to [https://supabase.com](https://supabase.com)
-2. Sign up or log in
-3. Create a new project
-4. Wait for the project to be provisioned
-
-### 2. Create the Database Table
-
-Run this SQL in your Supabase SQL Editor:
-
-\`\`\`sql
--- Create user_snapshots table
-CREATE TABLE user_snapshots (
+```sql
+-- Create user_profiles table
+CREATE TABLE IF NOT EXISTS public.user_profiles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  snapshot JSONB NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id)
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
+  username TEXT NOT NULL,
+  handle TEXT NOT NULL UNIQUE,
+  bio TEXT,
+  favorite_genres TEXT[],
+  profile_picture_url TEXT,
+  onboarding_completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable Row Level Security
-ALTER TABLE user_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
-CREATE POLICY "Users can read their own snapshots"
-  ON user_snapshots
+CREATE POLICY "Users can view their own profile"
+  ON public.user_profiles
   FOR SELECT
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own snapshots"
-  ON user_snapshots
+CREATE POLICY "Users can insert their own profile"
+  ON public.user_profiles
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own snapshots"
-  ON user_snapshots
+CREATE POLICY "Users can update their own profile"
+  ON public.user_profiles
   FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- Create index for faster lookups
-CREATE INDEX idx_user_snapshots_user_id ON user_snapshots(user_id);
-\`\`\`
+CREATE INDEX IF NOT EXISTS user_profiles_user_id_idx ON public.user_profiles(user_id);
+CREATE INDEX IF NOT EXISTS user_profiles_handle_idx ON public.user_profiles(handle);
+```
 
-### 3. Configure Environment Variables
+### 2. User Snapshots Table
 
-In Natively, press the **Supabase** button and connect to your project. This will automatically set:
+This table stores compressed snapshots of user data for sync functionality.
 
-- `EXPO_PUBLIC_SUPABASE_URL`: Your Supabase project URL
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon/public key
+```sql
+-- Create user_snapshots table
+CREATE TABLE IF NOT EXISTS public.user_snapshots (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
+  snapshot JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-You can find these in your Supabase project settings under **API**.
+-- Enable Row Level Security
+ALTER TABLE public.user_snapshots ENABLE ROW LEVEL SECURITY;
 
-### 4. Enable Authentication (Optional)
+-- Create policies
+CREATE POLICY "Users can view their own snapshot"
+  ON public.user_snapshots
+  FOR SELECT
+  USING (auth.uid() = user_id);
 
-If you want user authentication:
+CREATE POLICY "Users can insert their own snapshot"
+  ON public.user_snapshots
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
 
-1. In Supabase Dashboard, go to **Authentication** > **Providers**
-2. Enable your preferred auth method (Email, Google, etc.)
-3. Implement sign-in in your app using `supabase.auth.signInWithPassword()` or other methods
+CREATE POLICY "Users can update their own snapshot"
+  ON public.user_snapshots
+  FOR UPDATE
+  USING (auth.uid() = user_id);
 
-## Usage
+-- Create index for faster lookups
+CREATE INDEX IF NOT EXISTS user_snapshots_user_id_idx ON public.user_snapshots(user_id);
+```
 
-### Without Supabase
+### 3. Updated At Trigger
 
-The app works perfectly without Supabase! All data is stored locally and persists between sessions.
+This trigger automatically updates the `updated_at` timestamp.
 
-### With Supabase
+```sql
+-- Create function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-Once configured, the app will:
+-- Create triggers
+CREATE TRIGGER set_updated_at
+  BEFORE UPDATE ON public.user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
 
-- Automatically sync your data to the cloud every 5 minutes
-- Restore your data when you sign in on a new device
-- Handle conflicts by using the most recent version
-- Continue working offline and sync when connection returns
+CREATE TRIGGER set_updated_at
+  BEFORE UPDATE ON public.user_snapshots
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
 
-### Manual Sync
+## Email Configuration
 
-You can force a sync at any time:
+### Enable Email Confirmation (Recommended)
 
-1. Go to the **Profile** tab
-2. Scroll to **Sync Status**
-3. Tap **Force Sync Now**
+1. Go to Authentication > Settings in your Supabase dashboard
+2. Enable "Enable email confirmations"
+3. Customize the email templates if desired
 
-## Data Structure
+### Disable Email Confirmation (For Testing)
 
-The app stores the following in Zustand:
+1. Go to Authentication > Settings in your Supabase dashboard
+2. Disable "Enable email confirmations"
+3. Users will be automatically logged in after signup
 
-- **Books**: Your library with progress, notes, and ratings
-- **Friends**: Your reading friends and their activity
-- **Activities**: Social feed of reading milestones
-- **Groups**: Reading circles you've joined
-- **Friend Requests**: Pending friend requests
-- **Challenge**: Your daily reading challenge
-- **User Stats**: Books read, streak, milestones, etc.
-- **User Profile**: Name, handle, avatar, friend code
+## Environment Variables
+
+Add the following to your `.env` file or Expo environment configuration:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+You can find these values in your Supabase project settings under API.
+
+## Testing
+
+After running the SQL commands:
+
+1. Test signup with a new email
+2. Check your email for the confirmation link (if email confirmation is enabled)
+3. Test login with the confirmed account
+4. Complete the onboarding flow
+5. Verify that the data is stored in Supabase
 
 ## Troubleshooting
 
-### Sync Not Working
+### Email not sending
 
-1. Check that Supabase is configured (Profile > Sync Status)
-2. Ensure you're signed in to Supabase
-3. Check your internet connection
-4. Try forcing a manual sync
+- Check your Supabase email settings
+- Verify that email confirmation is enabled
+- Check the Supabase logs for errors
 
-### Data Not Restoring on New Device
+### Authentication errors
 
-1. Make sure you're signed in with the same Supabase account
-2. Check that the previous device successfully synced (check last sync time)
-3. Try forcing a sync on the old device first
+- Verify that your environment variables are correct
+- Check that RLS policies are properly configured
+- Review the Supabase logs for detailed error messages
 
-### Reset Data
+### Sync not working
 
-If you need to start fresh:
-
-1. Go to **Profile** tab
-2. Scroll to **Danger Zone**
-3. Tap **Reset All Data**
-
-This will clear all local data. Your Supabase snapshot will remain until you sync again.
-
-## Architecture
-
-- **State Management**: Zustand with middleware
-- **Local Persistence**: AsyncStorage via Zustand persist middleware
-- **Cloud Sync**: Supabase with JSONB storage
-- **Conflict Resolution**: Version-based (highest version wins)
-- **Network Detection**: expo-network for online/offline detection
-- **Sync Interval**: 5 minutes (configurable in `services/syncService.ts`)
-
-## Security
-
-- All Supabase requests are authenticated
-- Row Level Security (RLS) ensures users can only access their own data
-- Snapshots are stored as JSONB for efficient querying
-- No sensitive data is logged
-
-## Performance
-
-- Local operations are instant (no network delay)
-- Sync happens in the background (non-blocking)
-- Only one snapshot per user (keeps database clean)
-- Compressed JSON for efficient storage
-
----
-
-**Note**: This app is designed to work offline-first. Supabase is optional and only adds cloud backup and cross-device sync capabilities.
+- Ensure the user_snapshots table is created
+- Verify that the user is authenticated
+- Check network connectivity
+- Review the app logs for sync errors

@@ -18,6 +18,7 @@ class SyncService {
     
     // Get or create device ID
     this.deviceId = await this.getDeviceId();
+    console.log('Device ID:', this.deviceId);
     
     // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
@@ -41,6 +42,7 @@ class SyncService {
       if (!deviceId) {
         deviceId = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
+        console.log('Created new device ID:', deviceId);
       }
       return deviceId;
     } catch (error) {
@@ -263,6 +265,7 @@ class SyncService {
       version: store.version,
       isSyncing: this.isSyncing,
       isConfigured: isSupabaseConfigured(),
+      deviceId: this.deviceId,
     };
   }
 }

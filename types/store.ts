@@ -72,6 +72,20 @@ export interface UserStats {
   averageRating: number;
 }
 
+// User Profile types
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  username: string;
+  handle: string;
+  bio?: string;
+  favorite_genres?: string[];
+  profile_picture_url?: string;
+  onboarding_completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Sync snapshot type
 export interface SyncSnapshot {
   data: {
