@@ -65,18 +65,7 @@ export default function FriendsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; friendCode: string } | null>(null);
 
-  useEffect(() => {
-    loadCurrentUser();
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      loadFriends();
-      loadFriendActivities();
-    }
-  }, [currentUser]);
-
-  const loadCurrentUser = async () => {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -93,9 +82,9 @@ export default function FriendsScreen() {
     } catch (error) {
       console.error('Error loading current user:', error);
     }
-  };
+  }, []);
 
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!currentUser) return;
 
     try {
@@ -131,9 +120,9 @@ export default function FriendsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
 
-  const loadFriendActivities = async () => {
+  const loadFriendActivities = useCallback(async () => {
     if (!currentUser) return;
 
     try {
@@ -167,13 +156,24 @@ export default function FriendsScreen() {
     } catch (error) {
       console.error('Error loading friend activities:', error);
     }
-  };
+  }, [currentUser]);
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, [loadCurrentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadFriends();
+      loadFriendActivities();
+    }
+  }, [currentUser, loadFriends, loadFriendActivities]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([loadFriends(), loadFriendActivities()]);
     setRefreshing(false);
-  }, [currentUser]);
+  }, [loadFriends, loadFriendActivities]);
 
   const handleAddFriend = async (friendUserId: string) => {
     if (!currentUser) return;

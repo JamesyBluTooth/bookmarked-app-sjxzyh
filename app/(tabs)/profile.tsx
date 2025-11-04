@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,11 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [friendCode, setFriendCode] = useState(user.friendCode);
 
-  useEffect(() => {
-    loadFriendCode();
-  }, []);
-
-  const loadFriendCode = async () => {
+  const loadFriendCode = useCallback(async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
@@ -54,7 +50,11 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Error loading friend code:', error);
     }
-  };
+  }, [updateUser]);
+
+  useEffect(() => {
+    loadFriendCode();
+  }, [loadFriendCode]);
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [

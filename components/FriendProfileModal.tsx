@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -59,13 +59,7 @@ export default function FriendProfileModal({
     averageRating: 0,
   });
 
-  useEffect(() => {
-    if (visible && friendUserId) {
-      loadFriendProfile();
-    }
-  }, [visible, friendUserId]);
-
-  const loadFriendProfile = async () => {
+  const loadFriendProfile = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -89,7 +83,13 @@ export default function FriendProfileModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [friendUserId]);
+
+  useEffect(() => {
+    if (visible && friendUserId) {
+      loadFriendProfile();
+    }
+  }, [visible, friendUserId, loadFriendProfile]);
 
   const handleUnfriend = () => {
     Alert.alert(
