@@ -130,7 +130,7 @@ export default function OnboardingScreen() {
 
           // Read the file as base64
           const base64 = await FileSystem.readAsStringAsync(profileImage, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
 
           // Convert base64 to ArrayBuffer
