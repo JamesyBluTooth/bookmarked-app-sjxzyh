@@ -21,6 +21,7 @@ import ProgressBar from '@/components/ProgressBar';
 import AddProgressModal from '@/components/AddProgressModal';
 import AddNoteModal from '@/components/AddNoteModal';
 import CompleteBookModal from '@/components/CompleteBookModal';
+import EditBookDetailsModal from '@/components/EditBookDetailsModal';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useAppStore } from '@/stores/appStore';
 
@@ -35,13 +36,16 @@ export default function BookDetailScreen() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const [showOptions, setShowOptions] = useState(false);
 
   // Get book from Zustand store
   const getBookById = useAppStore((state) => state.getBookById);
+  const getBookWithOverrides = useAppStore((state) => state.getBookWithOverrides);
   const updateBook = useAppStore((state) => state.updateBook);
   const deleteBook = useAppStore((state) => state.deleteBook);
+  const setLocalBookOverride = useAppStore((state) => state.setLocalBookOverride);
   const updateUserStats = useAppStore((state) => state.updateUserStats);
   const userStats = useAppStore((state) => state.userStats);
 
@@ -110,8 +114,8 @@ export default function BookDetailScreen() {
         fetchBookData(isbn);
       }
     } else if (isbn) {
-      // Try to get from store first
-      const storeBook = getBookById(isbn);
+      // Try to get from store first (with local overrides applied)
+      const storeBook = getBookWithOverrides(isbn);
       if (storeBook) {
         setBook(storeBook);
         setLoading(false);
@@ -121,7 +125,7 @@ export default function BookDetailScreen() {
     } else {
       setLoading(false);
     }
-  }, [isbn, bookDataParam, fetchBookData, getBookById]);
+  }, [isbn, bookDataParam, fetchBookData, getBookWithOverrides]);
 
   const handleAddProgress = useCallback((pagesRead: number, timeSpent: number) => {
     if (!book) return;
@@ -202,6 +206,24 @@ export default function BookDetailScreen() {
     setShowCompleteModal(false);
     console.log('Book completed:', updatedBook);
   }, [book, updateBook, updateUserStats, userStats]);
+
+  const handleSaveBookDetails = useCallback((updates: Partial<BookData>) => {
+    if (!book) return;
+
+    // Save to local overrides (doesn't sync to Supabase)
+    setLocalBookOverride(book.id, updates);
+
+    // Update local state
+    const updatedBook = { ...book, ...updates };
+    setBook(updatedBook);
+
+    console.log('Book details updated locally:', updates);
+    Alert.alert(
+      'Details Saved',
+      'Book details have been updated locally. These changes will not sync to other devices.',
+      [{ text: 'OK' }]
+    );
+  }, [book, setLocalBookOverride]);
 
   const handleDeleteBook = useCallback(() => {
     if (!book) return;
@@ -482,6 +504,19 @@ export default function BookDetailScreen() {
               >
                 <TouchableOpacity
                   style={styles.optionButton}
+                  onPress={() => setShowEditModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="pencil" size={20} color={theme.primary} />
+                  <Text style={[styles.optionButtonText, { color: theme.text }]}>
+                    Edit Book Details
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={[styles.optionDivider, { backgroundColor: theme.border }]} />
+
+                <TouchableOpacity
+                  style={styles.optionButton}
                   onPress={handleDeleteBook}
                   activeOpacity={0.7}
                 >
@@ -604,6 +639,13 @@ export default function BookDetailScreen() {
         visible={showCompleteModal}
         onClose={() => setShowCompleteModal(false)}
         onComplete={handleCompleteBook}
+      />
+
+      <EditBookDetailsModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveBookDetails}
+        book={book}
       />
     </SafeAreaView>
   );
@@ -828,6 +870,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     gap: 12,
+  },
+  optionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  optionDivider: {
+    height: 1,
+    marginHorizontal: 20,
   },
   deleteButtonText: {
     fontSize: 16,

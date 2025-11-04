@@ -14,6 +14,11 @@ export interface AppState {
   deleteBook: (id: string) => void;
   getBookById: (id: string) => BookData | undefined;
   
+  // Local book detail overrides (for edited details that don't sync)
+  localBookOverrides: Record<string, Partial<BookData>>;
+  setLocalBookOverride: (bookId: string, overrides: Partial<BookData>) => void;
+  getBookWithOverrides: (bookId: string) => BookData | undefined;
+  
   // Friends
   friends: Friend[];
   addFriend: (friend: Friend) => void;
@@ -69,6 +74,7 @@ export interface AppState {
 
 const initialState = {
   books: [],
+  localBookOverrides: {},
   friends: [],
   activities: [],
   groups: [],
@@ -117,15 +123,44 @@ export const useAppStore = create<AppState>()(
       },
       
       deleteBook: (id) => {
-        set((state) => ({
-          books: state.books.filter((book) => book.id !== id),
-          version: state.version + 1,
-        }));
+        set((state) => {
+          const newOverrides = { ...state.localBookOverrides };
+          delete newOverrides[id];
+          return {
+            books: state.books.filter((book) => book.id !== id),
+            localBookOverrides: newOverrides,
+            version: state.version + 1,
+          };
+        });
         console.log('Book deleted:', id);
       },
       
       getBookById: (id) => {
         return get().books.find((book) => book.id === id);
+      },
+      
+      // Local book overrides
+      setLocalBookOverride: (bookId, overrides) => {
+        set((state) => ({
+          localBookOverrides: {
+            ...state.localBookOverrides,
+            [bookId]: {
+              ...state.localBookOverrides[bookId],
+              ...overrides,
+            },
+          },
+        }));
+        console.log('Local book override set for:', bookId);
+      },
+      
+      getBookWithOverrides: (bookId) => {
+        const book = get().books.find((b) => b.id === bookId);
+        if (!book) return undefined;
+        
+        const overrides = get().localBookOverrides[bookId];
+        if (!overrides) return book;
+        
+        return { ...book, ...overrides };
       },
       
       // Friends
@@ -251,6 +286,7 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         books: state.books,
+        localBookOverrides: state.localBookOverrides,
         friends: state.friends,
         activities: state.activities,
         groups: state.groups,
