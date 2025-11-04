@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Group } from '@/data/mockData';
+import { Group } from '@/types/store';
 import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
@@ -44,8 +44,9 @@ export default function GroupCard({ group, onJoin }: GroupCardProps) {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? theme.card : '#FFFFFF',
-          borderColor: isDark ? theme.border : '#E0E0E0',
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          boxShadow: `0px 3px 10px ${theme.cardShadow}`,
           transform: [{ translateY }],
         },
       ]}
@@ -96,7 +97,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginVertical: 8,
     marginHorizontal: 4,
-    boxShadow: '0 3px 0 #D0D0D0',
     elevation: 3,
   },
   image: {

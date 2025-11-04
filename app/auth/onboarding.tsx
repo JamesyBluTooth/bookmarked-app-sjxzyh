@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,7 +21,9 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { decode } from 'base64-arraybuffer';
 
 const { width } = Dimensions.get('window');
 
@@ -120,24 +123,41 @@ export default function OnboardingScreen() {
 
       // Upload profile picture if selected
       if (profileImage && profileImage.startsWith('file://')) {
-        const fileExt = profileImage.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
+        try {
+          const fileExt = profileImage.split('.').pop() || 'jpg';
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          const filePath = `avatars/${fileName}`;
 
-        const response = await fetch(profileImage);
-        const blob = await response.blob();
+          // Read the file as base64
+          const base64 = await FileSystem.readAsStringAsync(profileImage, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
 
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, blob);
+          // Convert base64 to ArrayBuffer
+          const arrayBuffer = decode(base64);
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
+          // Determine content type
+          const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+
+          const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .getPublicUrl(filePath);
-          profilePictureUrl = publicUrl;
+            .upload(filePath, arrayBuffer, {
+              contentType,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            Alert.alert('Warning', 'Profile picture upload failed, but continuing with onboarding.');
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('avatars')
+              .getPublicUrl(filePath);
+            profilePictureUrl = publicUrl;
+          }
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError);
+          Alert.alert('Warning', 'Profile picture upload failed, but continuing with onboarding.');
         }
       }
 

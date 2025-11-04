@@ -15,6 +15,7 @@ export const colors = {
     success: '#4CAF50',
     error: '#F44336',
     warning: '#FF9800',
+    cardShadow: 'rgba(0, 0, 0, 0.1)',
   },
   dark: {
     background: '#121212',
@@ -29,6 +30,7 @@ export const colors = {
     success: '#66BB6A',
     error: '#EF5350',
     warning: '#FFA726',
+    cardShadow: 'rgba(0, 0, 0, 0.3)',
   },
 };
 
@@ -40,7 +42,6 @@ export const commonStyles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   title: {

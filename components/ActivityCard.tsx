@@ -1,10 +1,10 @@
 
-import { colors } from '@/styles/commonStyles';
-import { useThemeMode } from '@/contexts/ThemeContext';
-import { Activity } from '@/data/mockData';
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { IconSymbol } from './IconSymbol';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { colors } from '@/styles/commonStyles';
+import React from 'react';
+import { Activity } from '@/types/store';
+import { useThemeMode } from '@/contexts/ThemeContext';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -79,11 +79,15 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
 
   const renderAvatar = () => {
     if (activity.friend.avatarUrl) {
-      return <Image source={{ uri: activity.friend.avatarUrl }} style={styles.avatar} />;
+      return (
+        <Image
+          source={{ uri: activity.friend.avatarUrl }}
+          style={styles.avatar}
+        />
+      );
     }
-    
     return (
-      <View style={[styles.avatarFallback, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={[styles.avatarPlaceholder, { backgroundColor: theme.border }]}>
         <IconSymbol name="person.fill" size={20} color={theme.textSecondary} />
       </View>
     );
@@ -91,17 +95,18 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
 
   return (
     <TouchableOpacity
+      onPress={onReact}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={1}
-      disabled={!onReact}
+      activeOpacity={0.9}
     >
       <Animated.View
         style={[
           styles.container,
           {
-            backgroundColor: isDark ? theme.card : '#FFFFFF',
-            borderColor: isDark ? theme.border : '#E0E0E0',
+            backgroundColor: theme.card,
+            borderColor: theme.border,
+            boxShadow: `0px 2px 8px ${theme.cardShadow}`,
             transform: [{ translateY }],
           },
         ]}
@@ -109,17 +114,17 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
         <View style={styles.header}>
           {renderAvatar()}
           <View style={styles.headerText}>
-            <Text style={[styles.userName, { color: theme.text }]}>
+            <Text style={[styles.name, { color: theme.text }]}>
               {activity.friend.name}
             </Text>
-            <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
+            <Text style={[styles.time, { color: theme.textSecondary }]}>
               {getTimeAgo(activity.timestamp)}
             </Text>
           </View>
           <View
             style={[
-              styles.activityIcon,
-              { backgroundColor: getActivityColor() + '20' },
+              styles.iconContainer,
+              { backgroundColor: `${getActivityColor()}20` },
             ]}
           >
             <IconSymbol
@@ -130,30 +135,25 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
           </View>
         </View>
 
-        <Text style={[styles.activityText, { color: theme.text }]}>
-          {activity.message} {activity.book.title}
+        <Text style={[styles.message, { color: theme.text }]}>
+          {activity.message}
         </Text>
 
-        {activity.book.title && (
-          <View style={[styles.bookInfo, { backgroundColor: theme.background }]}>
-            <IconSymbol name="book.fill" size={16} color={theme.textSecondary} />
-            <Text style={[styles.bookTitle, { color: theme.text }]}>
-              {activity.book.title}
-            </Text>
+        {activity.book && (
+          <View style={styles.bookInfo}>
+            <Image
+              source={{ uri: activity.book.coverUrl }}
+              style={styles.bookCover}
+            />
+            <View style={styles.bookDetails}>
+              <Text style={[styles.bookTitle, { color: theme.text }]} numberOfLines={1}>
+                {activity.book.title}
+              </Text>
+              <Text style={[styles.bookAuthor, { color: theme.textSecondary }]} numberOfLines={1}>
+                {activity.book.author}
+              </Text>
+            </View>
           </View>
-        )}
-
-        {onReact && (
-          <TouchableOpacity
-            style={[styles.reactButton, { borderColor: theme.border }]}
-            onPress={onReact}
-            activeOpacity={0.8}
-          >
-            <IconSymbol name="hand.thumbsup" size={16} color={theme.primary} />
-            <Text style={[styles.reactText, { color: theme.primary }]}>
-              Congratulate
-            </Text>
-          </TouchableOpacity>
         )}
       </Animated.View>
     </TouchableOpacity>
@@ -162,12 +162,10 @@ export default function ActivityCard({ activity, onReact }: ActivityCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 2,
-    padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 4,
-    boxShadow: '0 3px 0 #D0D0D0',
+    padding: 16,
+    marginBottom: 12,
     elevation: 3,
   },
   header: {
@@ -181,34 +179,33 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
   },
-  avatarFallback: {
+  avatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
   },
   headerText: {
     flex: 1,
   },
-  userName: {
-    fontSize: 14,
+  name: {
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 2,
   },
-  timeAgo: {
+  time: {
     fontSize: 12,
   },
-  activityIcon: {
+  iconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  activityText: {
+  message: {
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
@@ -216,28 +213,22 @@ const styles = StyleSheet.create({
   bookInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    gap: 8,
   },
-  bookTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+  bookCover: {
+    width: 50,
+    height: 75,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  bookDetails: {
     flex: 1,
   },
-  reactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
-  },
-  reactText: {
-    fontSize: 13,
+  bookTitle: {
+    fontSize: 14,
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  bookAuthor: {
+    fontSize: 12,
   },
 });

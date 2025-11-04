@@ -4,6 +4,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookData, Friend, Activity, Group, FriendRequest, Challenge, UserStats } from '@/types/store';
 
+type ThemeMode = 'light' | 'dark' | 'auto';
+
 export interface AppState {
   // Books
   books: BookData[];
@@ -49,6 +51,10 @@ export interface AppState {
   };
   updateUser: (updates: Partial<AppState['user']>) => void;
   
+  // Theme Mode
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  
   // Sync metadata
   lastSyncTimestamp: number;
   setLastSyncTimestamp: (timestamp: number) => void;
@@ -81,6 +87,7 @@ const initialState = {
     friendCode: 'BOOK-0000',
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200',
   },
+  themeMode: 'light' as ThemeMode,
   lastSyncTimestamp: 0,
   version: 1,
 };
@@ -218,6 +225,12 @@ export const useAppStore = create<AppState>()(
         console.log('User profile updated');
       },
       
+      // Theme Mode
+      setThemeMode: (mode) => {
+        set({ themeMode: mode });
+        console.log('Theme mode set to:', mode);
+      },
+      
       // Sync metadata
       setLastSyncTimestamp: (timestamp) => {
         set({ lastSyncTimestamp: timestamp });
@@ -245,6 +258,7 @@ export const useAppStore = create<AppState>()(
         challenge: state.challenge,
         userStats: state.userStats,
         user: state.user,
+        themeMode: state.themeMode,
         lastSyncTimestamp: state.lastSyncTimestamp,
         version: state.version,
       }),

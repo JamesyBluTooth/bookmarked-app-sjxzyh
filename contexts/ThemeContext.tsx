@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { useAppStore } from '@/stores/appStore';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -14,7 +15,26 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
+  const themeModeFromStore = useAppStore((state) => state.themeMode);
+  const setThemeModeInStore = useAppStore((state) => state.setThemeMode);
+  
+  // Initialize with light mode if no preference is stored
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(themeModeFromStore || 'light');
+
+  useEffect(() => {
+    // Sync with store on mount
+    if (themeModeFromStore) {
+      setThemeModeState(themeModeFromStore);
+    } else {
+      // Set default to light mode in store
+      setThemeModeInStore('light');
+    }
+  }, [themeModeFromStore, setThemeModeInStore]);
+
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode);
+    setThemeModeInStore(mode);
+  };
 
   const isDark = themeMode === 'auto' 
     ? systemColorScheme === 'dark' 
