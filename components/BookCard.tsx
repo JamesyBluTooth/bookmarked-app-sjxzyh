@@ -84,7 +84,7 @@ export default function BookCard({ book, onPress }: BookCardProps) {
         ]}
       >
         <Image source={{ uri: book.coverUrl }} style={styles.cover} />
-        <View style={styles.content}>
+        <Text style={styles.content}>
           <View style={styles.header}>
             <View style={styles.titleContainer}>
               <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
@@ -120,7 +120,7 @@ export default function BookCard({ book, onPress }: BookCardProps) {
               </Text>
             </View>
           )}
-        </View>
+        </Text>
       </Animated.View>
     </TouchableOpacity>
   );

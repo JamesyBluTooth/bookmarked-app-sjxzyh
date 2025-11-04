@@ -119,6 +119,8 @@ export default function OnboardingScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      console.log('Starting onboarding for user:', user.id);
+
       let profilePictureUrl = profileImage;
 
       // Upload profile picture if selected
@@ -127,6 +129,8 @@ export default function OnboardingScreen() {
           const fileExt = profileImage.split('.').pop() || 'jpg';
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
           const filePath = `avatars/${fileName}`;
+
+          console.log('Uploading profile picture:', filePath);
 
           // Read the file as base64
           const base64 = await FileSystem.readAsStringAsync(profileImage, {
@@ -154,6 +158,7 @@ export default function OnboardingScreen() {
               .from('avatars')
               .getPublicUrl(filePath);
             profilePictureUrl = publicUrl;
+            console.log('Profile picture uploaded successfully:', publicUrl);
           }
         } catch (uploadError) {
           console.error('Image upload error:', uploadError);
@@ -161,22 +166,38 @@ export default function OnboardingScreen() {
         }
       }
 
-      // Update user profile in Supabase
-      const { data: profile, error: updateError } = await supabase
+      // Generate a unique friend code
+      const friendCode = `${handle.trim().replace('@', '').toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      console.log('Generated friend code:', friendCode);
+
+      const profileData = {
+        user_id: user.id,
+        username: username.trim(),
+        handle: handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`,
+        bio: bio.trim() || null,
+        favorite_genres: selectedGenres,
+        profile_picture_url: profilePictureUrl,
+        onboarding_completed: true,
+        friend_code: friendCode,
+      };
+
+      console.log('Upserting profile data:', profileData);
+
+      // Use upsert to insert or update the profile
+      const { data: profile, error: upsertError } = await supabase
         .from('user_profiles')
-        .update({
-          username: username.trim(),
-          handle: handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`,
-          bio: bio.trim() || null,
-          favorite_genres: selectedGenres,
-          profile_picture_url: profilePictureUrl,
-          onboarding_completed: true,
+        .upsert(profileData, {
+          onConflict: 'user_id',
         })
-        .eq('user_id', user.id)
         .select()
         .single();
 
-      if (updateError) throw updateError;
+      if (upsertError) {
+        console.error('Upsert error:', upsertError);
+        throw upsertError;
+      }
+
+      console.log('Profile upserted successfully:', profile);
 
       // Update local store
       updateUser({
