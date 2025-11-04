@@ -27,6 +27,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+	const [showPassword, setShowPassword] = useState('false');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -113,18 +114,37 @@ export default function LoginScreen() {
               />
             </View>
 
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                placeholder="Password"
-                placeholderTextColor={theme.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
-            </View>
+{/* Password Input with Eye Icon */}
+<View style={styles.passwordContainer}>
+  <TextInput
+    style={[
+      styles.input,
+      { 
+        backgroundColor: theme.card, 
+        color: theme.text, 
+        borderColor: theme.border,
+        paddingRight: 50 // space for icon
+      }
+    ]}
+    placeholder="Password"
+    placeholderTextColor={theme.textSecondary}
+    value={password}
+    onChangeText={setPassword}
+    secureTextEntry={!showPassword}
+    editable={!loading}
+  />
+  <TouchableOpacity
+    onPress={() => setShowPassword(!showPassword)}
+    style={styles.eyeButton}
+    disabled={loading}
+  >
+    <IconSymbol
+      name={showPassword ? 'eye.slash.fill' : 'eye.fill'} // iOS SF Symbols
+      color={theme.textSecondary}
+      size={22}
+    />
+  </TouchableOpacity>
+</View>
 
             {/* Sign In Button */}
             <TouchableOpacity
@@ -254,4 +274,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
   },
+	passwordContainer: {
+  position: 'relative',
+  marginBottom: 16,
+},
+eyeButton: {
+  position: 'absolute',
+  right: 16,
+  top: 16,
+},
 });

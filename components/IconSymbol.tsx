@@ -28,6 +28,7 @@ const MAPPING = {
   "chevron.down": "keyboard-arrow-down",
   "arrow.clockwise": "refresh",
   "arrow.counterclockwise": "refresh",
+	"books.fill": "library-books",
 
   // Communication & Social
   "paperplane.fill": "send",
@@ -36,8 +37,7 @@ const MAPPING = {
   "envelope": "mail-outline",
   "phone.fill": "phone",
   "phone": "phone-outlined",
-  "message.fill": "chat",
-  "message": "chat-bubble-outline",
+  "message": "chat-bubble",
   "bell.fill": "notifications",
   "bell": "notifications-none",
   "heart.fill": "favorite",

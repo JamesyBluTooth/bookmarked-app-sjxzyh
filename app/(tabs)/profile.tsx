@@ -1,54 +1,85 @@
 
-import { useAppStore } from '@/stores/appStore';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  Image,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import TopBar from '@/components/TopBar';
+import { useRouter } from 'expo-router';
+import { useAppStore } from '@/stores/appStore';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import React from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useThemeMode } from '@/contexts/ThemeContext';
-import { useRouter } from 'expo-router';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Image, Alert } from 'react-native';
-import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { syncService } from '@/services/syncService';
+import TopBar from '@/components/TopBar';
 
 export default function ProfileScreen() {
   const user = useAppStore((state) => state.user);
   const userStats = useAppStore((state) => state.userStats);
   const resetStore = useAppStore((state) => state.resetStore);
+  const updateUser = useAppStore((state) => state.updateUser);
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
   const { lastSyncTime, isSyncing } = useSyncStatus();
   const router = useRouter();
+  const [friendCode, setFriendCode] = useState(user.friendCode);
+
+  useEffect(() => {
+    loadFriendCode();
+  }, []);
+
+  const loadFriendCode = async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('friend_code')
+        .eq('user_id', authUser.id)
+        .single();
+
+      if (profile?.friend_code) {
+        setFriendCode(profile.friend_code);
+        updateUser({ friendCode: profile.friend_code });
+      }
+    } catch (error) {
+      console.error('Error loading friend code:', error);
+    }
+  };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (isSupabaseConfigured()) {
-                console.log('Logging out from Supabase...');
-                await supabase.auth.signOut();
-              }
-              console.log('Logged out successfully');
-              router.replace('/auth/login');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            if (isSupabaseConfigured()) {
+              console.log('Logging out from Supabase...');
+              await supabase.auth.signOut();
             }
-          },
+            console.log('Logged out successfully');
+            router.replace('/auth/login');
+          } catch (error) {
+            console.error('Logout error:', error);
+            Alert.alert('Error', 'Failed to logout. Please try again.');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleResetData = () => {
@@ -98,16 +129,24 @@ export default function ProfileScreen() {
     if (user.avatarUrl) {
       return <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />;
     }
-    
+
     return (
-      <View style={[styles.avatarFallback, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View
+        style={[
+          styles.avatarFallback,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
         <IconSymbol name="person.fill" size={50} color={theme.textSecondary} />
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={['top']}
+    >
       <TopBar />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
@@ -115,29 +154,45 @@ export default function ProfileScreen() {
           {renderAvatar()}
           <Text style={[styles.name, { color: theme.text }]}>{user.name}</Text>
           <Text style={[styles.handle, { color: theme.textSecondary }]}>{user.handle}</Text>
-          <Text style={[styles.friendCode, { color: theme.primary, backgroundColor: theme.card }]}>
-            {user.friendCode}
-          </Text>
+          <View
+            style={[
+              styles.friendCodeContainer,
+              { backgroundColor: theme.card, borderColor: theme.primary },
+            ]}
+          >
+            <Text style={[styles.friendCodeLabel, { color: theme.textSecondary }]}>
+              Friend Code
+            </Text>
+            <Text style={[styles.friendCode, { color: theme.primary }]}>{friendCode}</Text>
+          </View>
         </View>
 
         {/* Stats */}
-        <View style={[
-          styles.statsContainer, 
-          { 
-            backgroundColor: isDark ? theme.card : '#FFFFFF',
-            borderColor: isDark ? theme.border : '#E0E0E0',
-          }
-        ]}>
+        <View
+          style={[
+            styles.statsContainer,
+            {
+              backgroundColor: isDark ? theme.card : '#FFFFFF',
+              borderColor: isDark ? theme.border : '#E0E0E0',
+            },
+          ]}
+        >
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{userStats.booksRead}</Text>
+            <Text style={[styles.statValue, { color: theme.text }]}>
+              {userStats.booksRead}
+            </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Books</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{userStats.currentStreak}</Text>
+            <Text style={[styles.statValue, { color: theme.text }]}>
+              {userStats.currentStreak}
+            </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Streak</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{userStats.milestones}</Text>
+            <Text style={[styles.statValue, { color: theme.text }]}>
+              {userStats.milestones}
+            </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Milestones</Text>
           </View>
           <View style={styles.statItem}>
@@ -151,50 +206,58 @@ export default function ProfileScreen() {
         {/* Menu Items */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Account</Text>
-          
-          <TouchableOpacity style={[
-            styles.menuItem, 
-            { 
-              backgroundColor: isDark ? theme.card : '#FFFFFF',
-              borderColor: isDark ? theme.border : '#E0E0E0',
-            }
-          ]}>
+
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              {
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: isDark ? theme.border : '#E0E0E0',
+              },
+            ]}
+          >
             <IconSymbol name="chart.bar" size={24} color={theme.primary} />
             <Text style={[styles.menuItemText, { color: theme.text }]}>Analytics</Text>
             <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[
-            styles.menuItem, 
-            { 
-              backgroundColor: isDark ? theme.card : '#FFFFFF',
-              borderColor: isDark ? theme.border : '#E0E0E0',
-            }
-          ]}>
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              {
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: isDark ? theme.border : '#E0E0E0',
+              },
+            ]}
+          >
             <IconSymbol name="trophy" size={24} color={theme.primary} />
             <Text style={[styles.menuItemText, { color: theme.text }]}>Achievements</Text>
             <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[
-            styles.menuItem, 
-            { 
-              backgroundColor: isDark ? theme.card : '#FFFFFF',
-              borderColor: isDark ? theme.border : '#E0E0E0',
-            }
-          ]}>
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              {
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: isDark ? theme.border : '#E0E0E0',
+              },
+            ]}
+          >
             <IconSymbol name="gear" size={24} color={theme.primary} />
             <Text style={[styles.menuItemText, { color: theme.text }]}>Settings</Text>
             <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[
-            styles.menuItem, 
-            { 
-              backgroundColor: isDark ? theme.card : '#FFFFFF',
-              borderColor: isDark ? theme.border : '#E0E0E0',
-            }
-          ]}>
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              {
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: isDark ? theme.border : '#E0E0E0',
+              },
+            ]}
+          >
             <IconSymbol name="bell" size={24} color={theme.primary} />
             <Text style={[styles.menuItemText, { color: theme.text }]}>Notifications</Text>
             <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
@@ -205,14 +268,14 @@ export default function ProfileScreen() {
         {isSupabaseConfigured() && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Data Sync</Text>
-            
+
             <TouchableOpacity
               style={[
-                styles.menuItem, 
-                { 
+                styles.menuItem,
+                {
                   backgroundColor: isDark ? theme.card : '#FFFFFF',
                   borderColor: isDark ? theme.border : '#E0E0E0',
-                }
+                },
               ]}
               onPress={handleForceSync}
             >
@@ -229,18 +292,20 @@ export default function ProfileScreen() {
         {/* Danger Zone */}
         <View style={[styles.dangerZone, { borderTopColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.error }]}>Danger Zone</Text>
-          
+
           <TouchableOpacity
             style={[
-              styles.dangerButton, 
-              { 
+              styles.dangerButton,
+              {
                 backgroundColor: isDark ? theme.card : '#FFFFFF',
                 borderColor: isDark ? theme.border : '#E0E0E0',
-              }
+              },
             ]}
             onPress={handleResetData}
           >
-            <Text style={[styles.dangerButtonText, { color: theme.error }]}>Reset All Data</Text>
+            <Text style={[styles.dangerButtonText, { color: theme.error }]}>
+              Reset All Data
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -289,15 +354,23 @@ const styles = StyleSheet.create({
   },
   handle: {
     fontSize: 16,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  friendCodeContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  friendCodeLabel: {
+    fontSize: 12,
+    marginBottom: 4,
   },
   friendCode: {
-    fontSize: 14,
-    fontWeight: '600',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    overflow: 'hidden',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   statsContainer: {
     flexDirection: 'row',

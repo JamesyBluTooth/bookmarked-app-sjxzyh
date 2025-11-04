@@ -162,7 +162,10 @@ const styles = StyleSheet.create({
   modalContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    maxHeight: '95%',
+minHeight: '60%',
+flexGrow: 1,
+
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   header: {

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function TabLayout() {
   const tabs: TabBarItem[] = [
@@ -16,7 +17,7 @@ export default function TabLayout() {
     {
       name: 'books',
       route: '/(tabs)/books',
-      icon: 'book.fill',
+      icon: 'books.fill',
       label: 'Books',
     },
     {
@@ -28,7 +29,7 @@ export default function TabLayout() {
     {
       name: 'groups',
       route: '/(tabs)/groups',
-      icon: 'person.3.fill',
+      icon: 'message',
       label: 'Groups',
     },
     {
