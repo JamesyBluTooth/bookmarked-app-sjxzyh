@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,10 +36,12 @@ export default function BookDetailScreen() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [showOptions, setShowOptions] = useState(false);
 
   // Get book from Zustand store
   const getBookById = useAppStore((state) => state.getBookById);
   const updateBook = useAppStore((state) => state.updateBook);
+  const deleteBook = useAppStore((state) => state.deleteBook);
   const updateUserStats = useAppStore((state) => state.updateUserStats);
   const userStats = useAppStore((state) => state.userStats);
 
@@ -199,6 +202,32 @@ export default function BookDetailScreen() {
     setShowCompleteModal(false);
     console.log('Book completed:', updatedBook);
   }, [book, updateBook, updateUserStats, userStats]);
+
+  const handleDeleteBook = useCallback(() => {
+    if (!book) return;
+
+    Alert.alert(
+      'Delete Book',
+      `Are you sure you want to delete "${book.title}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            console.log('Deleting book:', book.id);
+            deleteBook(book.id);
+            
+            // Navigate back after deletion
+            router.back();
+          },
+        },
+      ]
+    );
+  }, [book, deleteBook, router]);
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
@@ -421,6 +450,48 @@ export default function BookDetailScreen() {
                 ✓ Complete
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Options Section */}
+          <View style={styles.optionsSection}>
+            <TouchableOpacity
+              style={styles.optionsHeader}
+              onPress={() => setShowOptions(!showOptions)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.optionsTitle, { color: theme.text }]}>
+                Options
+              </Text>
+              <IconSymbol 
+                name={showOptions ? 'chevron.up' : 'chevron.down'} 
+                size={20} 
+                color={theme.textSecondary} 
+              />
+            </TouchableOpacity>
+
+            {showOptions && (
+              <Animated.View 
+                entering={FadeIn.duration(200)}
+                style={[
+                  styles.optionsContent,
+                  {
+                    backgroundColor: isDark ? theme.card : '#FFFFFF',
+                    borderColor: isDark ? theme.border : '#E0E0E0',
+                  }
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={handleDeleteBook}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="trash" size={20} color="#FF3B30" />
+                  <Text style={styles.deleteButtonText}>
+                    Delete Book
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </View>
 
           {/* Activity Log Section */}
@@ -729,6 +800,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // Options Section
+  optionsSection: {
+    marginBottom: 24,
+  },
+  optionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  optionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  optionsContent: {
+    borderRadius: 18,
+    borderWidth: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3B30',
   },
 
   // Activity Log
