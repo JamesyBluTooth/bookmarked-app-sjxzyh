@@ -5,64 +5,97 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TextInput,
   TouchableOpacity,
+  TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
-import { IconSymbol } from './IconSymbol';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { checkAndAwardAchievements, getUserProgress } from '@/utils/achievementHelper';
 
 interface AddProgressModalProps {
   visible: boolean;
   onClose: () => void;
-  onAddProgress: (pagesRead: number, timeSpent: number) => void;
+  onAddProgress: (pages: number, timeSpent: number) => void;
+  bookTitle: string;
+  bookId: string;
   currentPage: number;
-  totalPages: number;
+  totalPages?: number;
 }
 
 export default function AddProgressModal({
   visible,
   onClose,
   onAddProgress,
+  bookTitle,
+  bookId,
   currentPage,
   totalPages,
 }: AddProgressModalProps) {
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
-  const [pagesRead, setPagesRead] = useState('');
+  const [pages, setPages] = useState('');
   const [timeSpent, setTimeSpent] = useState('');
-  const [error, setError] = useState('');
 
-  const handleSubmit = () => {
-    const pages = parseInt(pagesRead);
-    const time = parseInt(timeSpent);
+  const handleAdd = async () => {
+    const pagesNum = parseInt(pages, 10);
+    const timeNum = parseInt(timeSpent, 10);
 
-    if (!pages || pages <= 0) {
-      setError('Please enter a valid number of pages');
+    if (isNaN(pagesNum) || pagesNum <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid number of pages.');
       return;
     }
 
-    if (currentPage + pages > totalPages) {
-      setError(`Cannot exceed total pages (${totalPages})`);
+    if (isNaN(timeNum) || timeNum <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid time spent in minutes.');
       return;
     }
 
-    if (!time || time <= 0) {
-      setError('Please enter a valid time in minutes');
+    if (totalPages && currentPage + pagesNum > totalPages) {
+      Alert.alert(
+        'Invalid Pages',
+        `You cannot add more pages than the total (${totalPages} pages).`
+      );
       return;
     }
 
-    onAddProgress(pages, time);
-    handleClose();
+    try {
+      // Save reading session to Supabase if configured
+      if (isSupabaseConfigured()) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('reading_sessions').insert({
+            user_id: user.id,
+            book_id: bookId,
+            book_title: bookTitle,
+            pages_read: pagesNum,
+            time_spent_minutes: timeNum,
+            session_date: new Date().toISOString().split('T')[0],
+          });
+
+          // Check and award achievements
+          const progress = await getUserProgress(user.id);
+          await checkAndAwardAchievements(user.id, progress);
+        }
+      }
+
+      onAddProgress(pagesNum, timeNum);
+      setPages('');
+      setTimeSpent('');
+    } catch (error) {
+      console.error('Error saving reading session:', error);
+      Alert.alert('Error', 'Failed to save reading session. Please try again.');
+    }
   };
 
   const handleClose = () => {
-    setPagesRead('');
+    setPages('');
     setTimeSpent('');
-    setError('');
     onClose();
   };
 
@@ -73,97 +106,79 @@ export default function AddProgressModal({
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+        <Animated.View
+          entering={SlideInDown.springify()}
+          exiting={SlideOutDown.springify()}
+          style={[styles.modal, { backgroundColor: theme.card }]}
         >
-          <Animated.View
-            entering={SlideInDown}
-            exiting={SlideOutDown}
-            style={[styles.modalContainer, { backgroundColor: theme.card }]}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.text }]}>Add Progress</Text>
+            <TouchableOpacity onPress={handleClose}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.bookTitle, { color: theme.text }]}>{bookTitle}</Text>
+          <Text style={[styles.currentProgress, { color: theme.textSecondary }]}>
+            Current: Page {currentPage}
+            {totalPages && ` of ${totalPages}`}
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <Text style={[styles.label, { color: theme.text }]}>Pages Read</Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder="Enter number of pages"
+              placeholderTextColor={theme.textSecondary}
+              value={pages}
+              onChangeText={setPages}
+              keyboardType="number-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={[styles.label, { color: theme.text }]}>Time Spent (minutes)</Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder="Enter time in minutes"
+              placeholderTextColor={theme.textSecondary}
+              value={timeSpent}
+              onChangeText={setTimeSpent}
+              keyboardType="number-pad"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: theme.primary }]}
+            onPress={handleAdd}
           >
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: theme.text }]}>Add Progress</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <IconSymbol name="xmark" size={24} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.content}>
-              <Text style={[styles.currentProgress, { color: theme.textSecondary }]}>
-                Current: {currentPage} / {totalPages} pages
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.text }]}>Pages Read</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: theme.background,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    }
-                  ]}
-                  placeholder="Enter number of pages"
-                  placeholderTextColor={theme.textSecondary}
-                  value={pagesRead}
-                  onChangeText={(text) => {
-                    setPagesRead(text);
-                    setError('');
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.text }]}>Time Spent (minutes)</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: theme.background,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    }
-                  ]}
-                  placeholder="Enter time in minutes"
-                  placeholderTextColor={theme.textSecondary}
-                  value={timeSpent}
-                  onChangeText={(text) => {
-                    setTimeSpent(text);
-                    setError('');
-                  }}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              {error && (
-                <View style={styles.errorContainer}>
-                  <IconSymbol name="exclamationmark.triangle.fill" size={20} color={theme.error} />
-                  <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-                </View>
-              )}
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}
-                  onPress={handleClose}
-                >
-                  <Text style={[styles.actionButtonText, { color: theme.text }]}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.primary }]}
-                  onPress={handleSubmit}
-                >
-                  <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Add</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </View>
+            <Text style={styles.addButtonText}>Add Progress</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -171,40 +186,37 @@ export default function AddProgressModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
-  keyboardView: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
+  modal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    padding: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 16,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
   },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    paddingHorizontal: 20,
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   currentProgress: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  inputGroup: {
+  inputContainer: {
     marginBottom: 20,
   },
   label: {
@@ -213,33 +225,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
+    borderWidth: 2,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
-    borderWidth: 1,
   },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flex: 1,
+  addButton: {
+    paddingVertical: 16,
     borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
+    marginTop: 8,
   },
-  actionButtonText: {
+  addButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

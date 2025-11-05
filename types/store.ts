@@ -86,6 +86,52 @@ export interface UserProfile {
   updated_at: string;
 }
 
+// Reading Session types
+export interface ReadingSession {
+  id: string;
+  user_id: string;
+  book_id: string;
+  book_title?: string;
+  pages_read: number;
+  time_spent_minutes: number;
+  session_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Book Rating types
+export interface BookRating {
+  id: string;
+  user_id: string;
+  book_id: string;
+  book_title?: string;
+  book_author?: string;
+  book_cover_url?: string;
+  rating: number;
+  review_text?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Achievement types
+export interface Achievement {
+  id: string;
+  achievement_key: string;
+  title: string;
+  description: string;
+  icon: string;
+  requirement_type: 'books_read' | 'reading_streak' | 'pages_read' | 'time_spent' | 'ratings_given';
+  requirement_value: number;
+  created_at: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  completed_at: string;
+}
+
 // Sync snapshot type
 export interface SyncSnapshot {
   data: {

@@ -20,18 +20,8 @@ export default function TopBar({
   onNotificationPress,
   onAvatarPress,
 }: TopBarProps) {
-  const { themeMode, setThemeMode, isDark } = useThemeMode();
+  const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
-
-  const toggleTheme = () => {
-    if (themeMode === 'light') {
-      setThemeMode('dark');
-    } else if (themeMode === 'dark') {
-      setThemeMode('auto');
-    } else {
-      setThemeMode('light');
-    }
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
@@ -42,18 +32,6 @@ export default function TopBar({
       </View>
       
       <View style={styles.rightSection}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={toggleTheme}
-          activeOpacity={0.7}
-        >
-          <IconSymbol
-            name={isDark ? 'sun.max.fill' : 'moon.fill'}
-            size={22}
-            color={theme.text}
-          />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onNotificationPress}

@@ -5,40 +5,82 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TextInput,
   TouchableOpacity,
+  TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useThemeMode } from '@/contexts/ThemeContext';
-import { IconSymbol } from './IconSymbol';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { checkAndAwardAchievements, getUserProgress } from '@/utils/achievementHelper';
 
 interface CompleteBookModalProps {
   visible: boolean;
   onClose: () => void;
-  onComplete: (rating?: number, review?: string) => void;
+  onComplete: (rating: number, review: string) => void;
+  bookTitle: string;
+  bookAuthor?: string;
+  bookCoverUrl?: string;
+  bookId: string;
 }
 
 export default function CompleteBookModal({
   visible,
   onClose,
   onComplete,
+  bookTitle,
+  bookAuthor,
+  bookCoverUrl,
+  bookId,
 }: CompleteBookModalProps) {
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
-  const [rating, setRating] = useState<number | undefined>(undefined);
+  const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
 
-  const handleSubmit = () => {
-    onComplete(rating, review.trim() || undefined);
-    handleClose();
+  const handleComplete = async () => {
+    if (rating === 0) {
+      Alert.alert('Rating Required', 'Please select a rating before completing.');
+      return;
+    }
+
+    try {
+      // Save rating to Supabase if configured
+      if (isSupabaseConfigured()) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('book_ratings').upsert({
+            user_id: user.id,
+            book_id: bookId,
+            book_title: bookTitle,
+            book_author: bookAuthor,
+            book_cover_url: bookCoverUrl,
+            rating,
+            review_text: review || null,
+          });
+
+          // Check and award achievements
+          const progress = await getUserProgress(user.id);
+          await checkAndAwardAchievements(user.id, progress);
+        }
+      }
+
+      onComplete(rating, review);
+      setRating(0);
+      setReview('');
+    } catch (error) {
+      console.error('Error saving book completion:', error);
+      Alert.alert('Error', 'Failed to save rating. Please try again.');
+    }
   };
 
   const handleClose = () => {
-    setRating(undefined);
+    setRating(0);
     setReview('');
     onClose();
   };
@@ -50,101 +92,84 @@ export default function CompleteBookModal({
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+        <Animated.View
+          entering={SlideInDown.springify()}
+          exiting={SlideOutDown.springify()}
+          style={[styles.modal, { backgroundColor: theme.card }]}
         >
-          <Animated.View
-            entering={SlideInDown}
-            exiting={SlideOutDown}
-            style={[styles.modalContainer, { backgroundColor: theme.card }]}
-          >
+          <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={[styles.title, { color: theme.text }]}>Complete Book</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <IconSymbol name="xmark" size={24} color={theme.text} />
+              <TouchableOpacity onPress={handleClose}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              style={styles.scrollView}
-              contentContainerStyle={styles.content}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  Rate this book (Optional)
-                </Text>
-                <View style={styles.starsContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity
-                      key={star}
-                      onPress={() => setRating(star)}
-                      style={styles.starButton}
-                    >
-                      <IconSymbol
-                        name={rating && star <= rating ? 'star.fill' : 'star'}
-                        size={40}
-                        color={rating && star <= rating ? theme.highlight : theme.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {rating && (
+            <Text style={[styles.bookTitle, { color: theme.text }]}>{bookTitle}</Text>
+            {bookAuthor && (
+              <Text style={[styles.bookAuthor, { color: theme.textSecondary }]}>
+                by {bookAuthor}
+              </Text>
+            )}
+
+            <View style={styles.section}>
+              <Text style={[styles.label, { color: theme.text }]}>Rating *</Text>
+              <View style={styles.ratingContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
                   <TouchableOpacity
-                    onPress={() => setRating(undefined)}
-                    style={styles.clearButton}
+                    key={star}
+                    onPress={() => setRating(star)}
+                    style={styles.starButton}
                   >
-                    <Text style={[styles.clearText, { color: theme.textSecondary }]}>
-                      Clear rating
-                    </Text>
+                    <IconSymbol
+                      name={star <= rating ? 'star.fill' : 'star'}
+                      size={40}
+                      color={star <= rating ? theme.primary : theme.border}
+                    />
                   </TouchableOpacity>
-                )}
+                ))}
               </View>
+            </View>
 
-              <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  Write a review (Optional)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textArea,
-                    {
-                      backgroundColor: theme.background,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    }
-                  ]}
-                  placeholder="Share your thoughts about this book..."
-                  placeholderTextColor={theme.textSecondary}
-                  value={review}
-                  onChangeText={setReview}
-                  multiline
-                  numberOfLines={8}
-                  textAlignVertical="top"
-                />
-              </View>
+            <View style={styles.section}>
+              <Text style={[styles.label, { color: theme.text }]}>Review (Optional)</Text>
+              <TextInput
+                style={[
+                  styles.reviewInput,
+                  {
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}
+                placeholder="Share your thoughts about this book..."
+                placeholderTextColor={theme.textSecondary}
+                value={review}
+                onChangeText={setReview}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
 
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}
-                  onPress={handleClose}
-                >
-                  <Text style={[styles.actionButtonText, { color: theme.text }]}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.success }]}
-                  onPress={handleSubmit}
-                >
-                  <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Complete</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </View>
+            <TouchableOpacity
+              style={[styles.completeButton, { backgroundColor: theme.primary }]}
+              onPress={handleComplete}
+            >
+              <Text style={styles.completeButtonText}>Complete Book</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -152,41 +177,36 @@ export default function CompleteBookModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
-  keyboardView: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
+  modal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '95%',
-minHeight: '60%',
-flexGrow: 1,
-
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    padding: 24,
+    maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 16,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
   },
-  closeButton: {
-    padding: 4,
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
+  bookAuthor: {
+    fontSize: 14,
+    marginBottom: 24,
   },
   section: {
     marginBottom: 24,
@@ -196,42 +216,29 @@ flexGrow: 1,
     fontWeight: '600',
     marginBottom: 12,
   },
-  starsContainer: {
+  ratingContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginVertical: 8,
+    gap: 8,
   },
   starButton: {
     padding: 4,
   },
-  clearButton: {
-    alignSelf: 'center',
-    marginTop: 8,
-    padding: 8,
-  },
-  clearText: {
-    fontSize: 14,
-  },
-  textArea: {
+  reviewInput: {
+    borderWidth: 2,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
-    borderWidth: 1,
-    minHeight: 150,
+    minHeight: 100,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flex: 1,
+  completeButton: {
+    paddingVertical: 16,
     borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
+    marginTop: 8,
   },
-  actionButtonText: {
+  completeButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
