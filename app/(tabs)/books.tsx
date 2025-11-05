@@ -13,7 +13,7 @@ import { BookData } from '@/types/book';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useAppStore } from '@/stores/appStore';
 
-type FilterType = 'all' | 'reading' | 'to-read' | 'completed';
+type FilterType = 'all' | 'reading' | 'completed';
 
 export default function BooksScreen() {
   const { isDark } = useThemeMode();
@@ -31,7 +31,6 @@ export default function BooksScreen() {
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'reading', label: 'Currently Reading' },
-    { key: 'to-read', label: 'To Read' },
     { key: 'completed', label: 'Completed' },
   ];
 

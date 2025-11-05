@@ -298,6 +298,23 @@ export const useAppStore = create<AppState>()(
         lastSyncTimestamp: state.lastSyncTimestamp,
         version: state.version,
       }),
+      // Migration function to convert old "to-read" status to "reading"
+      migrate: (persistedState: any, version: number) => {
+        if (persistedState && persistedState.books) {
+          persistedState.books = persistedState.books.map((book: any) => {
+            // Convert old "to-read" status to "reading"
+            if (book.status === 'to-read') {
+              console.log(`Migrating book "${book.title}" from "to-read" to "reading"`);
+              return {
+                ...book,
+                status: 'reading',
+              };
+            }
+            return book;
+          });
+        }
+        return persistedState;
+      },
     }
   )
 );

@@ -45,8 +45,6 @@ export default function BookCard({ book, onPress }: BookCardProps) {
         return theme.success;
       case 'reading':
         return theme.primary;
-      case 'to-read':
-        return theme.textSecondary;
       default:
         return theme.textSecondary;
     }
@@ -58,8 +56,6 @@ export default function BookCard({ book, onPress }: BookCardProps) {
         return 'Completed';
       case 'reading':
         return 'Reading';
-      case 'to-read':
-        return 'To Read';
       default:
         return '';
     }
@@ -84,7 +80,7 @@ export default function BookCard({ book, onPress }: BookCardProps) {
         ]}
       >
         <Image source={{ uri: book.coverUrl }} style={styles.cover} />
-        <Text style={styles.content}>
+        <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.titleContainer}>
               <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
@@ -120,7 +116,7 @@ export default function BookCard({ book, onPress }: BookCardProps) {
               </Text>
             </View>
           )}
-        </Text>
+        </View>
       </Animated.View>
     </TouchableOpacity>
   );

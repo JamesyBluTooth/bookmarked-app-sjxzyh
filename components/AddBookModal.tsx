@@ -32,7 +32,7 @@ export default function AddBookModal({ visible, onClose, onAddBook }: AddBookMod
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookData, setBookData] = useState<GoogleBookData | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<'reading' | 'to-read' | 'completed'>('to-read');
+  const [selectedStatus, setSelectedStatus] = useState<'reading' | 'completed'>('reading');
 
   const validateISBN = (value: string): boolean => {
     const cleaned = value.replace(/[-\s]/g, '');
@@ -93,6 +93,7 @@ export default function AddBookModal({ visible, onClose, onAddBook }: AddBookMod
       progressEntries: [],
       dateAdded: new Date().toISOString(),
       dateCompleted: selectedStatus === 'completed' ? new Date().toISOString() : undefined,
+      totalPages: volumeInfo.pageCount || 0,
     };
 
     onAddBook(newBook);
@@ -103,7 +104,7 @@ export default function AddBookModal({ visible, onClose, onAddBook }: AddBookMod
     setIsbn('');
     setBookData(null);
     setError('');
-    setSelectedStatus('to-read');
+    setSelectedStatus('reading');
     onClose();
   };
 
@@ -229,7 +230,7 @@ export default function AddBookModal({ visible, onClose, onAddBook }: AddBookMod
                       Reading Status
                     </Text>
                     <View style={styles.statusButtons}>
-                      {(['to-read', 'reading', 'completed'] as const).map((status) => (
+                      {(['reading', 'completed'] as const).map((status) => (
                         <TouchableOpacity
                           key={status}
                           style={[
@@ -248,7 +249,7 @@ export default function AddBookModal({ visible, onClose, onAddBook }: AddBookMod
                                 : { color: theme.text },
                             ]}
                           >
-                            {status === 'to-read' ? 'To Read' : status === 'reading' ? 'Currently Reading' : 'Completed'}
+                            {status === 'reading' ? 'Currently Reading' : 'Completed'}
                           </Text>
                         </TouchableOpacity>
                       ))}

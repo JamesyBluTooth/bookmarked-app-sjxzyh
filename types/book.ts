@@ -10,7 +10,7 @@ export interface BookData {
   genre?: string;
   publisher?: string;
   publishedDate?: string;
-  status: 'reading' | 'to-read' | 'completed';
+  status: 'reading' | 'completed';
   currentPage: number;
   progress: number;
   rating?: number;
@@ -19,6 +19,7 @@ export interface BookData {
   progressEntries: ProgressEntry[];
   dateAdded: string;
   dateCompleted?: string;
+  totalPages?: number;
 }
 
 export interface BookNote {

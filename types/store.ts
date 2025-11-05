@@ -27,7 +27,7 @@ export interface Activity {
     author: string;
     coverUrl: string;
     progress: number;
-    status: 'reading' | 'to-read' | 'completed';
+    status: 'reading' | 'completed';
     rating?: number;
     totalPages?: number;
     currentPage?: number;
