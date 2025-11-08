@@ -22,7 +22,7 @@ import { colors } from '@/styles/commonStyles';
 import { BarChart } from 'react-native-chart-kit';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-type SectionType = 'analytics' | 'achievements' | 'settings' | null;
+type SectionType = 'analytics' | 'achievements' | null;
 type ReadingSpeedUnit = { distance: 'pages' | 'books'; time: 'minute' | 'hour' | 'day' | 'week' };
 
 interface ReadingSession {
@@ -56,10 +56,7 @@ export default function ProfileScreen() {
   const user = useAppStore((state) => state.user);
   const userStats = useAppStore((state) => state.userStats);
   const books = useAppStore((state) => state.books);
-  const resetStore = useAppStore((state) => state.resetStore);
   const updateUser = useAppStore((state) => state.updateUser);
-  const setThemeMode = useAppStore((state) => state.setThemeMode);
-  const themeMode = useAppStore((state) => state.themeMode);
   const { isDark } = useThemeMode();
   const theme = isDark ? colors.dark : colors.light;
   const router = useRouter();
@@ -74,7 +71,6 @@ export default function ProfileScreen() {
   });
   const [bookRatings, setBookRatings] = useState<BookRating[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const loadFriendCode = useCallback(async () => {
     try {
@@ -203,54 +199,6 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push('/auth/onboarding');
-  };
-
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all associated data. This action cannot be undone. Are you sure?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const { data: { user: authUser } } = await supabase.auth.getUser();
-              if (!authUser) return;
-
-              // Delete user data from Supabase
-              await supabase.from('reading_sessions').delete().eq('user_id', authUser.id);
-              await supabase.from('book_ratings').delete().eq('user_id', authUser.id);
-              await supabase.from('user_achievements').delete().eq('user_id', authUser.id);
-              await supabase.from('friendships').delete().eq('user_id', authUser.id);
-              await supabase.from('friendships').delete().eq('friend_id', authUser.id);
-              await supabase.from('friend_activities').delete().eq('user_id', authUser.id);
-              await supabase.from('user_snapshots').delete().eq('user_id', authUser.id);
-              await supabase.from('user_profiles').delete().eq('user_id', authUser.id);
-
-              // Delete auth user
-              await supabase.auth.admin.deleteUser(authUser.id);
-
-              // Clear local store
-              resetStore();
-
-              Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
-              router.replace('/auth/login');
-            } catch (error) {
-              console.error('Error deleting account:', error);
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const toggleSection = (section: SectionType) => {
@@ -571,70 +519,22 @@ export default function ProfileScreen() {
     </Animated.View>
   );
 
-  const renderSettings = () => (
-    <Animated.View entering={FadeIn} exiting={FadeOut}>
-      <View style={[styles.sectionContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        {/* Profile Settings */}
-        <TouchableOpacity
-          style={[styles.settingsItem, { borderBottomColor: theme.border }]}
-          onPress={handleEditProfile}
-        >
-          <IconSymbol name="person.circle" size={24} color={theme.primary} />
-          <Text style={[styles.settingsItemText, { color: theme.text }]}>Edit Profile</Text>
-          <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-
-        {/* Theme Toggle */}
-        <View style={[styles.settingsItem, { borderBottomColor: theme.border }]}>
-          <IconSymbol name={isDark ? 'moon.fill' : 'sun.max.fill'} size={24} color={theme.primary} />
-          <Text style={[styles.settingsItemText, { color: theme.text }]}>Theme</Text>
-          <View style={styles.themeButtons}>
-            <TouchableOpacity
-              style={[
-                styles.themeButton,
-                themeMode === 'light' && { backgroundColor: theme.primary },
-                { borderColor: theme.border },
-              ]}
-              onPress={() => setThemeMode('light')}
-            >
-              <Text style={[styles.themeButtonText, themeMode === 'light' && { color: '#FFFFFF' }, { color: theme.text }]}>
-                Light
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.themeButton,
-                themeMode === 'dark' && { backgroundColor: theme.primary },
-                { borderColor: theme.border },
-              ]}
-              onPress={() => setThemeMode('dark')}
-            >
-              <Text style={[styles.themeButtonText, themeMode === 'dark' && { color: '#FFFFFF' }, { color: theme.text }]}>
-                Dark
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Delete Account */}
-        <TouchableOpacity
-          style={[styles.settingsItem, styles.settingsItemDanger]}
-          onPress={handleDeleteAccount}
-          disabled={loading}
-        >
-          <IconSymbol name="trash" size={24} color={theme.error} />
-          <Text style={[styles.settingsItemText, { color: theme.error }]}>Delete Account</Text>
-          {loading && <ActivityIndicator size="small" color={theme.error} />}
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={['top']}
     >
+      {/* Header with Settings Icon */}
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+        >
+          <IconSymbol name="gear" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
         <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -738,24 +638,6 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
           {expandedSection === 'achievements' && renderAchievements()}
-
-          {/* Settings */}
-          <TouchableOpacity
-            style={[
-              styles.menuItem,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-            onPress={() => toggleSection('settings')}
-          >
-            <IconSymbol name="gear" size={24} color={theme.primary} />
-            <Text style={[styles.menuItemText, { color: theme.text }]}>Settings</Text>
-            <IconSymbol
-              name={expandedSection === 'settings' ? 'chevron.up' : 'chevron.down'}
-              size={20}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity>
-          {expandedSection === 'settings' && renderSettings()}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -765,6 +647,21 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  settingsButton: {
+    padding: 8,
   },
   scrollContent: {
     padding: 16,
@@ -1061,33 +958,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-  },
-  settingsItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  settingsItemText: {
-    fontSize: 16,
-    marginLeft: 12,
-    flex: 1,
-  },
-  settingsItemDanger: {
-    borderBottomWidth: 0,
-  },
-  themeButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  themeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  themeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
